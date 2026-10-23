@@ -7,7 +7,7 @@
  * The champion's route is inked in marker red; results "write in" once.
  */
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CompletedMatch } from "@/lib/api/types";
 import { Flag } from "@/components/domain/monogram";
 import { KNOCKOUT_ROUNDS, winnerId, type Bracket } from "@/lib/tournament";
@@ -176,13 +176,15 @@ function BracketCanvas({
   split,
   selectedId,
   onSelect,
+  geometry,
 }: {
   bracket: Bracket;
   split: boolean;
   selectedId: number | null;
   onSelect?: (m: CompletedMatch) => void;
+  geometry?: Geometry;
 }) {
-  const geo = split ? SPLIT : SINGLE;
+  const geo = geometry ?? (split ? SPLIT : SINGLE);
   const { placed, width, height } = layout(bracket, geo, split);
   const champion = winnerId(bracket.final.match);
   const thirdY = height + 46;
@@ -298,6 +300,56 @@ function RoundList({
   );
 }
 
+/** Two-sided poster that spreads its nine columns across the full page width,
+ *  so the chart reaches both edges like the rest of the page. */
+function FluidSplit({
+  bracket,
+  selectedId,
+  onSelect,
+}: {
+  bracket: Bracket;
+  selectedId: number | null;
+  onSelect?: (m: CompletedMatch) => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [avail, setAvail] = useState<number | null>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => setAvail(Math.floor(entry.contentRect.width)));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const minWidth = 9 * SPLIT.W + 8 * SPLIT.G;
+  // Beside the app sidebar the column can be narrower than the poster: fall back to the
+  // one-sided chart that scrolls sideways rather than overflowing the page.
+  if (avail !== null && avail < minWidth) {
+    return (
+      <div ref={ref} className="hidden xl:block">
+        <div
+          className="overflow-x-auto overscroll-x-contain pb-4"
+          role="region"
+          aria-label="Knockout bracket, scroll sideways for later rounds"
+          tabIndex={0}
+        >
+          <BracketCanvas bracket={bracket} split={false} selectedId={selectedId} onSelect={onSelect} />
+        </div>
+      </div>
+    );
+  }
+  let geo = SPLIT;
+  if (avail) {
+    const W = Math.round(Math.min(150, Math.max(SPLIT.W, (avail - 8 * 28) / 9)));
+    const G = Math.floor(Math.min(72, Math.max(SPLIT.G, (avail - 9 * W) / 8)));
+    geo = { ...SPLIT, W, G };
+  }
+  return (
+    <div ref={ref} className="hidden justify-center overflow-hidden xl:flex">
+      <BracketCanvas bracket={bracket} split geometry={geo} selectedId={selectedId} onSelect={onSelect} />
+    </div>
+  );
+}
+
 export function KnockoutBracket({
   bracket,
   selectedId,
@@ -312,9 +364,7 @@ export function KnockoutBracket({
   return (
     <div className={className}>
       {/* Wide screens: the poster, two halves meeting at the final. */}
-      <div className="hidden justify-center xl:flex">
-        <BracketCanvas bracket={bracket} split selectedId={selectedId} onSelect={onSelect} />
-      </div>
+      <FluidSplit bracket={bracket} selectedId={selectedId} onSelect={onSelect} />
       {/* Narrow screens: one side, scroll sideways through the rounds. */}
       {/* Phones: one round at a time, starting at the final. */}
       <div className="md:hidden">

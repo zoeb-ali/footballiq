@@ -187,3 +187,12 @@ textarea {
 .num {
   font-variant-numeric: tabular-nums;
 }
+
+/* Page width: same rule as ImmoDash so the portfolio projects sit on the screen the same way.
+   Content runs close to both edges, with a gutter that grows with the window. */
+.wrap {
+  width: 100%;
+  max-width: 2240px;
+  margin-inline: auto;
+  padding-inline: max(clamp(18px, 4.5vw, 88px), env(safe-area-inset-left));
+}

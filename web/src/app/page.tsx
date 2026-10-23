@@ -64,7 +64,7 @@ export default async function Home() {
 
   return (
     <div className="min-h-dvh">
-      <header className="mx-auto flex max-w-[1240px] items-center justify-between gap-4 px-5 py-5 sm:px-8">
+      <header className="wrap flex items-center justify-between gap-4 py-5">
         <Wordmark />
         <nav aria-label="Site" className="flex items-center gap-2 sm:gap-4">
           <a
@@ -84,20 +84,18 @@ export default async function Home() {
         </nav>
       </header>
 
-      <main id="main" className="mx-auto max-w-[1240px] px-5 pb-20 sm:px-8">
-        <section aria-labelledby="title" className="grid gap-x-12 gap-y-6 border-b-2 border-ink pb-8 pt-6 lg:grid-cols-2">
-          {/* Two lines across the full measure: a stacked headline beside a short column left a
-              tall empty block at desktop widths. */}
-          <h1 id="title" className="display text-[clamp(3rem,8.6vw,7.25rem)] lg:col-span-2">
-            <span className="lg:whitespace-nowrap">The 2026 World Cup,</span>
+      <main id="main" className="wrap pb-20">
+        <section aria-labelledby="title" className="grid gap-6 border-b-2 border-ink pb-8 pt-6 lg:grid-cols-[1.4fr_1fr] lg:items-end">
+          <h1 id="title" className="display text-[clamp(3rem,9vw,6.5rem)]">
+            The 2026 World Cup,
             <br />
             filled in.
           </h1>
-          <p className="max-w-[52ch] text-[17px] leading-relaxed text-ink-2">
-            All 104 matches on one chart. Click any tie for the score, the expected goals and what the ratings said
-            beforehand, then run the simulator against what really happened.
-          </p>
           <div className="flex flex-col gap-4">
+            <p className="max-w-[46ch] text-[17px] leading-relaxed text-ink-2">
+              All 104 matches on one chart. Click any tie for the score, the expected goals and what the ratings
+              said beforehand, then run the simulator against what really happened.
+            </p>
             {final && champion && runnerUp ? (
               <p className="text-[17px] font-semibold leading-snug">
                 {champion.name} are world champions.{" "}
@@ -169,7 +167,7 @@ export default async function Home() {
         </section>
       </main>
 
-      <Footer wide />
+      <Footer />
     </div>
   );
 }

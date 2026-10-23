@@ -48,10 +48,10 @@ const ICON_BTN =
   "grid h-9 w-9 place-items-center rounded-full border border-rule bg-sheet text-ink-2 transition-colors " +
   "hover:text-ink active:scale-95 pointer-coarse:h-11 pointer-coarse:w-11";
 
-export function Footer({ wide = false }: { wide?: boolean }) {
+export function Footer() {
   return (
     <footer className="border-t border-rule bg-sheet text-[14px] leading-relaxed text-ink-3">
-      <div className={wide ? "mx-auto max-w-[1240px] px-5 sm:px-8" : "mx-auto max-w-[1200px] px-4 sm:px-8"}>
+      <div className="wrap">
         <div className="grid gap-10 pb-9 pt-12 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,2fr)] lg:gap-[clamp(48px,6vw,120px)]">
           <div className="grid max-w-[44ch] content-start gap-4">
             <Wordmark className="justify-self-start" />
