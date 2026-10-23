@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { LandingChart } from "@/components/bracket/landing-chart";
 import { SourceBadge } from "@/components/domain/source-badge";
+import { Footer } from "@/components/shell/footer";
 import { Wordmark } from "@/components/shell/wordmark";
 import { getAllMatches, getTeams } from "@/lib/api/server-data";
 import { fmtDate, fmtNum, fmtVenue } from "@/lib/format";
@@ -166,34 +167,7 @@ export default async function Home() {
         </section>
       </main>
 
-      <footer className="border-t border-rule">
-        <div className="mx-auto grid max-w-[1240px] gap-6 px-5 py-8 text-[13px] leading-relaxed text-ink-3 sm:px-8 md:grid-cols-3">
-          <p>
-            Designed and built by{" "}
-            <a className="font-semibold text-ink underline" href={SITE.authorUrl} target="_blank" rel="noopener noreferrer">
-              {SITE.author}
-            </a>
-            .{" "}
-            <a className="underline hover:text-ink" href={SITE.repo} target="_blank" rel="noopener noreferrer">
-              Source on GitHub
-            </a>
-            .
-          </p>
-          <p>
-            Match, squad and event data:{" "}
-            <a
-              className="underline hover:text-ink"
-              href="https://www.kaggle.com/datasets/mominullptr/fifa-world-cup-2026-dataset"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              FIFA World Cup 2026 Dataset
-            </a>{" "}
-            by Md Mominul Islam (CC0). Flags from flag-icons (MIT).
-          </p>
-          <p>An independent portfolio project, not affiliated with or endorsed by FIFA.</p>
-        </div>
-      </footer>
+      <Footer wide />
     </div>
   );
 }

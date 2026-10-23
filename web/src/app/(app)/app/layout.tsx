@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { CommandPalette } from "@/components/shell/command-palette";
+import { Footer } from "@/components/shell/footer";
 import { Sidebar } from "@/components/shell/sidebar";
 import { Topbar } from "@/components/shell/topbar";
 
@@ -16,6 +17,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <main id="main" tabIndex={-1} className="mx-auto w-full max-w-[1200px] flex-1 px-4 pb-20 pt-6 outline-none sm:px-8 sm:pt-8">
           {children}
         </main>
+        <Footer />
       </div>
       <CommandPalette />
     </div>
