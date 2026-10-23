@@ -20,7 +20,7 @@ from footballiq.ml.metrics import FloatArray, evaluate
 from footballiq.ml.model_registry import register_production_model
 from footballiq.ml.registry import VALUATION_FEATURE_VERSION
 
-MODEL_VERSION = "1.0.0"
+MODEL_VERSION = "1.1.0"
 SEED = 42
 
 NUMERIC_FEATURES: tuple[str, ...] = (
@@ -28,19 +28,24 @@ NUMERIC_FEATURES: tuple[str, ...] = (
     "minutes_played", "appearances", "starts",
     "goals_p90", "assists_p90", "cards_p90", "low_minutes_flag",
     "team_elo", "team_fifa_ranking", "club_count",
+    "club_avg_team_elo", "club_nations",
 )
 POSITIONS: tuple[str, ...] = ("GK", "DEF", "MID", "FWD")
 FEATURE_COLUMNS: tuple[str, ...] = NUMERIC_FEATURES + tuple(
     f"pos_{p}" for p in POSITIONS
 )
 
+# v1.1.0: shallower, slower, more regularized. On the full 104-match tournament
+# the v1.0.0 settings overfit 1,248 rows and lost to the linear baseline, so
+# the gate (correctly) refused them. These win on 8/8 seeds, narrowly.
 XGB_PARAMS: dict[str, Any] = {
-    "n_estimators": 400,
-    "max_depth": 4,
-    "learning_rate": 0.05,
-    "subsample": 0.9,
-    "colsample_bytree": 0.9,
-    "reg_lambda": 1.0,
+    "n_estimators": 600,
+    "max_depth": 3,
+    "learning_rate": 0.03,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "min_child_weight": 5,
+    "reg_lambda": 5.0,
     "objective": "reg:squarederror",
     "random_state": SEED,
     "n_jobs": 4,

@@ -6,6 +6,48 @@ All notable changes to FootballIQ Enterprise. Format follows
 
 ## [Unreleased]
 
+## [1.2.0] — 2026-10-23
+### Data
+- Full tournament: Kaggle dataset v81 (104 matches through the final) replaces
+  the 1 July snapshot that stopped at the Round of 32
+- Penalty shoot-outs and how each result was reached flow bronze → gold →
+  API (`score.penalties`, `score.decided_by`, `score.winner`)
+- Cited correction seed `match_result_corrections` (Switzerland 0–0 Colombia
+  was missing its 4–3 shoot-out in the source); never invents events
+- Display names: `scripts/build_display_names.py` + seed repair names like
+  "Lamine Yamal Yamal", "RAMOSGonçalo Goncalo" and truncated "Mc" surnames;
+  `full_name` keeps the source value; new test `assert_display_names_clean`
+- New tests: `assert_knockouts_have_winner`; own goals counted in the goal
+  reconciliations (source v81 types them separately)
+### ML
+- Valuation model v1.1.0 / features v1.1.0: on the full tournament the v1.0.0
+  settings lost to the linear baseline and the gate refused them. Added
+  leakage-free club-strength features (`club_avg_team_elo`, `club_nations`)
+  and stronger regularization; beats both baselines on 8/8 seeds (RMSLE
+  0.998 ± 0.003 vs 1.004), narrowly, and the site says so
+### API
+- Analyst no longer OOM-kills the 512 MB Render instance: fastembed (ONNX,
+  same bge-small model) replaces sentence-transformers + PyTorch; Postgres
+  full-text `KeywordRetriever` as fallback or sole mode
+  (`FIQ_ANALYST_RETRIEVAL=keyword`); one analyst request at a time per process
+  (503 + Retry-After instead of stacking model loads)
+- `GET /v1/players?sort=goals|assists|minutes` leaderboards and a
+  `tournament` stats block on every player
+- Error responses keep their headers; unhandled errors log their correlation id
+### Web
+- Redesign as a "wall chart" (see `web/DESIGN.md`): bracket home page, match
+  sheets with inline simulation, group tables, flags, plain-language features
+- Snapshot fallback fixed: one canonical key for capture and read, every page
+  captured (4,331 responses in one 3.8 MB gzip bundle); `/health` is never
+  served from a snapshot, so the status light no longer says "live" when the
+  API is down; reads time out after 3.5 s instead of 8 s
+- Security: Next.js 16.2.10 → 16.4.2 (advisories incl. a middleware bypass);
+  analyst calls need the demo cookie; per-visitor rate limits; query-parameter
+  allow-list; 2 KB body cap; CSP and security headers; `middleware.ts` →
+  `proxy.ts`; site URL can no longer point at another domain
+- Removed: persona login wall, ECharts, Framer Motion, Lucide and unused
+  Radix/Table/Zod dependencies
+
 ## [1.1.0] — 2026-07-18
 ### Added
 - **Module 10 — simulation & model governance (ADR-0006):**

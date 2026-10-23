@@ -1,11 +1,14 @@
 # FootballIQ Enterprise
 
-[![CI](https://github.com/zoeb7184/footballiq/actions/workflows/ci.yml/badge.svg)](https://github.com/zoeb7184/footballiq/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-1.0.0-blue)](CHANGELOG.md)
+[![CI](https://github.com/zoeb-ali/footballiq/actions/workflows/ci.yml/badge.svg)](https://github.com/zoeb-ali/footballiq/actions/workflows/ci.yml)
+[![Version](https://img.shields.io/badge/version-1.2.0-blue)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/python-3.12-blue)](pyproject.toml)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 **An enterprise AI decision-intelligence platform, demonstrated on football analytics.**
+
+**Live:** [footballiq-zoeb.vercel.app](https://footballiq-zoeb.vercel.app) covers the full 2026 World Cup
+(104 matches, Spain champions) with a valuation model, a match simulator and a grounded analyst.
 
 Football is the demonstration domain, not the product. FootballIQ is built as a
 **domain-agnostic** decision-intelligence core — a medallion data warehouse, a
@@ -17,7 +20,7 @@ the ingestion adapters; nothing else changes.
 It is built to showcase production engineering practices end to end:
 
 - **Clean Architecture** with a strict, mechanically-enforced dependency rule
-- **Data warehousing** on a bronze/silver/gold medallion (dbt, 68 data contracts)
+- **Data warehousing** on a bronze/silver/gold medallion (dbt, 100+ data tests)
 - **FastAPI** read layer with typed, status-discriminated contracts
 - **Explainable AI** — gated ML valuations with exact per-player SHAP
 - **Graph analytics** — a club↔nation talent-flow network (NetworkX)
@@ -74,13 +77,16 @@ full quality gate green, a module report, and a tagged release.
 
 ### The web application
 
-`web/` is a production Next.js frontend over the public API only: interactive
-dashboards, the scout shortlist, per-player SHAP waterfalls with a
-browser-side additivity proof, the grounded AI analyst with SQL-sourced facts
-and citations, the talent-flow network, a seeded Monte Carlo match simulator,
-and a model-governance page. Design rationale in `FRONTEND_BLUEPRINT.md`;
-free-tier deployment (Neon + Render + Vercel) in
-`docs/deployment-free-tier.md`.
+`web/` is a Next.js frontend over the public API only, designed as a "wall
+chart": the finished knockout bracket (rebuilt from results alone) is the home
+page, and every tie opens into its score, expected goals, pre-match Elo odds and
+an on-demand simulation set against what actually happened. Inside: group
+tables computed from results, player pages with tournament stats, model-vs-market
+valuations with a ±20% error band and a step-by-step SHAP bridge checked in the
+browser, team and club-network pages, the grounded analyst, a model report with
+its baselines, and an honest system status. Design system in
+[`web/DESIGN.md`](web/DESIGN.md); free-tier deployment (Neon + Render + Vercel)
+in `docs/deployment-free-tier.md`.
 
 ```bash
 cd web && npm install && cp .env.example .env.local && npm run dev
@@ -117,6 +123,11 @@ match_lineups.csv      match_events.csv
 ```
 
 `make pipeline` validates that every declared file is present before ingesting.
+Use dataset version 81 or later (the complete tournament, with penalty
+shoot-outs). The source registry stores full legal names and some malformed
+ones; `python scripts/build_display_names.py data/raw/squads_and_players.csv`
+regenerates `transform/seeds/player_display_names.csv` (the names people know,
+with every rule recorded), and a dbt test fails if any name is left unrepaired.
 
 ### 3. Local development
 
@@ -227,9 +238,9 @@ minutes:
    the API serves, rendered for executives.
 
 > [!TIP]
-> Prefer raw JSON? Try `GET /v1/matches/89`: a scheduled knockout fixture has no
-> score field at all, and its undetermined opponent is an explicit typed state —
-> the data contract, visible in the response.
+> Prefer raw JSON? Try `GET /v1/matches/96` (Switzerland 0–0 Colombia): the
+> score carries the shoot-out (`penalties: {home: 4, away: 3}`), how the tie was
+> decided and who went through, so a knockout draw is never ambiguous.
 
 ---
 

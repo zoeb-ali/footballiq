@@ -23,7 +23,8 @@ SELECT
     aw.team_name             AS away_name,
     aw.fifa_code             AS away_code,
     f.status,
-    f.home_score, f.away_score, f.home_xg, f.away_xg
+    f.home_score, f.away_score, f.home_xg, f.away_xg,
+    f.home_penalty_score, f.away_penalty_score, f.result_type, f.winner_side
 FROM {p}fact_match f
 JOIN {p}dim_stage s ON f.stage_sk = s.stage_sk
 JOIN {p}dim_venue v ON f.venue_sk = v.venue_sk
@@ -40,6 +41,10 @@ def _opt_float(value: object) -> float | None:
 
 def _opt_int(value: object) -> int | None:
     return None if value is None else int(str(value))
+
+
+def _opt_str(value: object) -> str | None:
+    return None if value is None else str(value)
 
 
 def _record(row: RowMapping) -> MatchRecord:
@@ -69,6 +74,10 @@ def _record(row: RowMapping) -> MatchRecord:
         away_score=_opt_int(row["away_score"]),
         home_xg=_opt_float(row["home_xg"]),
         away_xg=_opt_float(row["away_xg"]),
+        home_penalty_score=_opt_int(row.get("home_penalty_score")),
+        away_penalty_score=_opt_int(row.get("away_penalty_score")),
+        result_type=_opt_str(row.get("result_type")),
+        winner_side=_opt_str(row.get("winner_side")),
     )
 
 

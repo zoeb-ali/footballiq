@@ -2,7 +2,7 @@
 
 Walks the docs tree, chunks each Markdown file heading-aware, and (re)indexes
 changed chunks into ai.document_chunk. Composition root for the batch job: wires
-the sentence-transformers embedder and pgvector store to the pure indexer.
+the ONNX (fastembed) embedder and pgvector store to the pure indexer.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from sqlalchemy import create_engine
 from footballiq.application.rag.chunking import chunk_markdown
 from footballiq.application.rag.indexing import index_documents
 from footballiq.application.rag.ports import Chunk
-from footballiq.infrastructure.ai.embeddings import SentenceTransformerEmbedder
+from footballiq.infrastructure.ai.embeddings import OnnxEmbedder
 from footballiq.infrastructure.ai.vector_store import PgVectorChunkStore
 from footballiq.infrastructure.config import load_settings
 
@@ -45,7 +45,7 @@ def main(args: list[str]) -> int:
         store = PgVectorChunkStore(engine)
         store.ensure_table()
         result = index_documents(
-            chunks, embedder=SentenceTransformerEmbedder(), store=store
+            chunks, embedder=OnnxEmbedder(), store=store
         )
         print(
             f"ai.document_chunk: {result.total} chunks "

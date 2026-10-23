@@ -15,7 +15,9 @@ def _star() -> Engine:
         (
             "CREATE TABLE fact_match (match_id int, date_key int, kickoff_utc text, "
             "stage_sk int, venue_sk int, home_team_sk int, away_team_sk int, "
-            "status text, home_score int, away_score int, home_xg real, away_xg real)"
+            "status text, home_score int, away_score int, home_xg real, away_xg real, "
+            "home_penalty_score int, away_penalty_score int, result_type text, "
+            "winner_side text)"
         ),
     ]
     rows = [
@@ -28,8 +30,8 @@ def _star() -> Engine:
         "INSERT INTO dim_date VALUES (20260611,'2026-06-11'), (20260704,'2026-07-04')",
         (
             "INSERT INTO fact_match VALUES "
-            "(1,20260611,'19:00',1,1,1,2,'Completed',2,0,1.84,0.52), "
-            "(89,20260704,'21:00',3,2,1,-2,'Scheduled',NULL,NULL,NULL,NULL)"
+            "(1,20260611,'19:00',1,1,1,2,'Completed',2,0,1.84,0.52,NULL,NULL,'regular','home'), "
+            "(89,20260704,'21:00',3,2,1,-2,'Scheduled',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL)"
         ),
     ]
     with engine.begin() as conn:
@@ -47,6 +49,8 @@ def test_completed_match_record_fully_typed() -> None:
     assert rec.home_score == 2 and rec.home_xg == 1.84
     assert rec.match_date == "2026-06-11"
     assert rec.is_knockout is False
+    assert rec.winner_side == "home" and rec.result_type == "regular"
+    assert rec.home_penalty_score is None
 
 
 def test_reserved_away_member_becomes_none_for_dto_layer() -> None:

@@ -1,10 +1,12 @@
 -- Flagship reconciliation (verified 0 mismatches at profiling, now a
 -- permanent contract): goal events per completed match must equal the
 -- recorded total score. Any returned row = base facts disagree internally.
+-- Own goals count toward the score (source v81 types them separately);
+-- penalty shoot-out kicks never do.
 with goals as (
     select match_id, count(*) as goal_events
     from {{ ref('fact_match_event') }}
-    where event_type = 'Goal'
+    where event_type in ('Goal', 'Own Goal')
     group by match_id
 )
 

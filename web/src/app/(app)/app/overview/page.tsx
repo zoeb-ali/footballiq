@@ -1,158 +1,141 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { MatchCard } from "@/components/domain/match-card";
+import { LandingChart } from "@/components/bracket/landing-chart";
+import { Flag } from "@/components/domain/monogram";
 import { PageHeader } from "@/components/domain/page-header";
 import { SourceBadge } from "@/components/domain/source-badge";
-import { StatCard } from "@/components/domain/stat-card";
 import { ErrorState } from "@/components/domain/states";
-import {
-  useClubs,
-  useMatches,
-  useTeams,
-  useValuations,
-} from "@/lib/api/queries";
-import { fmtEur, fmtSigned } from "@/lib/format";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
+import { useAllMatches, usePlayers, useTeams, useValuations } from "@/lib/api/queries";
+import { fmtEur, fmtNum, fmtSigned } from "@/lib/format";
+
+function TopScorers() {
+  const q = usePlayers({ sort: "goals", limit: 10 });
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Top scorers</CardTitle>
+        <Link href="/app/players?sort=goals" className="text-[14px] font-semibold text-pitch underline">
+          Full leaderboard
+        </Link>
+      </CardHeader>
+      {q.isPending ? (
+        <div className="flex flex-col gap-2 p-4">
+          {Array.from({ length: 6 }, (_, i) => (
+            <Skeleton key={i} className="h-8" />
+          ))}
+        </div>
+      ) : q.isError ? (
+        <div className="px-4">
+          <ErrorState error={q.error} onRetry={() => q.refetch()} />
+        </div>
+      ) : (
+        <Table>
+          <THead>
+            <tr>
+              <TH className="w-8 text-right">#</TH>
+              <TH>Player</TH>
+              <TH className="text-right">Goals</TH>
+              <TH className="text-right">Assists</TH>
+              <TH className="hidden text-right sm:table-cell">Minutes</TH>
+            </tr>
+          </THead>
+          <TBody>
+            {q.data.data.items.map((p, i) => (
+              <TR key={p.player_id}>
+                <TD className="text-right text-ink-3">{i + 1}</TD>
+                <TD>
+                  <Link href={`/app/players/${p.player_id}`} className="flex items-center gap-2 font-semibold hover:underline">
+                    <Flag code={p.team.fifa_code} />
+                    {p.name}
+                  </Link>
+                </TD>
+                <TD className="score text-right text-lg">{p.tournament?.goals ?? 0}</TD>
+                <TD className="text-right">{p.tournament?.assists ?? 0}</TD>
+                <TD className="hidden text-right text-ink-2 sm:table-cell">{fmtNum(p.tournament?.minutes ?? 0)}</TD>
+              </TR>
+            ))}
+          </TBody>
+        </Table>
+      )}
+    </Card>
+  );
+}
+
+function BiggestGaps() {
+  const q = useValuations({ limit: 6 });
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Where the model and the market disagree most</CardTitle>
+        <CardDescription>
+          The model prices these players highest above their market value. It lands within 20% of market for only about
+          one player in five, so treat these as questions, not findings.
+        </CardDescription>
+      </CardHeader>
+      {q.isPending ? (
+        <div className="flex flex-col gap-2 p-4">
+          {Array.from({ length: 6 }, (_, i) => (
+            <Skeleton key={i} className="h-8" />
+          ))}
+        </div>
+      ) : q.isError ? (
+        <div className="px-4">
+          <ErrorState error={q.error} onRetry={() => q.refetch()} />
+        </div>
+      ) : (
+        <ul className="divide-y divide-rule">
+          {q.data.data.items.map((v) => (
+            <li key={v.player_id}>
+              <Link
+                href={`/app/players/${v.player_id}/explanation`}
+                className="grid grid-cols-[1fr_auto] items-baseline gap-x-4 px-4 py-3 hover:bg-tint"
+              >
+                <span className="font-semibold">{v.name}</span>
+                <span className="score text-right text-lg text-marker">{fmtSigned(v.value_gap_eur, fmtEur)}</span>
+                <span className="text-[13px] text-ink-3">
+                  {v.position}, market {fmtEur(v.market_value_eur)}
+                </span>
+                <span className="text-right text-[13px] text-ink-3">model {fmtEur(v.predicted_value_eur)}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
+}
 
 export default function OverviewPage() {
-  const teams = useTeams(1);
-  const players = useValuations({ limit: 5 });
-  const fixtures = useMatches("Scheduled", 5);
-  const clubs = useClubs(5);
+  const matches = useAllMatches();
+  const teams = useTeams(100);
+  const source =
+    matches.data?.source === "snapshot" || teams.data?.source === "snapshot" ? "snapshot" : "live";
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-10">
       <PageHeader
-        title="Command center"
-        description="Live view over the warehouse: model shortlist, upcoming fixtures, and supplier concentration."
+        title="Overview"
+        description="The finished knockout bracket, the leading scorers, and where the valuation model disagrees most with the market. Click any tie to open it."
+        actions={<SourceBadge source={source} />}
       />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {teams.isPending ? (
-          <Skeleton className="h-24" />
-        ) : teams.isError ? (
-          <StatCard label="Teams" value="—" hint="API unreachable" />
+      <section aria-label="Knockout bracket">
+        {matches.isPending || teams.isPending ? (
+          <Skeleton className="h-[560px] w-full" />
+        ) : matches.isError ? (
+          <ErrorState error={matches.error} onRetry={() => matches.refetch()} />
         ) : (
-          <StatCard label="Teams" value={teams.data.data.total} hint="World Cup 2026" />
+          <LandingChart matches={matches.data.data} teams={teams.data?.data.items ?? []} appLinks />
         )}
-        {players.isPending ? (
-          <Skeleton className="h-24" />
-        ) : players.isError ? (
-          <StatCard label="Scored players" value="—" hint="API unreachable" />
-        ) : (
-          <StatCard
-            label="Scored players"
-            value={players.data.data.total}
-            hint="ML valuations with SHAP"
-          />
-        )}
-        {fixtures.isPending ? (
-          <Skeleton className="h-24" />
-        ) : fixtures.isError ? (
-          <StatCard label="Fixtures" value="—" hint="API unreachable" />
-        ) : (
-          <StatCard
-            label="Scheduled fixtures"
-            value={fixtures.data.data.total}
-            hint="in the match ledger"
-          />
-        )}
-        {clubs.isPending ? (
-          <Skeleton className="h-24" />
-        ) : clubs.isError ? (
-          <StatCard label="Supplier clubs" value="—" hint="API unreachable" />
-        ) : (
-          <StatCard
-            label="Supplier clubs"
-            value={clubs.data.data.total}
-            hint="in the talent network"
-          />
-        )}
-      </div>
+      </section>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader className="flex-row items-center justify-between">
-            <CardTitle>Top value gaps</CardTitle>
-            <div className="flex items-center gap-2">
-              {players.data ? <SourceBadge source={players.data.source} /> : null}
-              <Link
-                href="/app/valuations"
-                className="flex items-center gap-1 text-xs text-accent hover:underline"
-              >
-                Shortlist <ArrowRight className="h-3 w-3" aria-hidden="true" />
-              </Link>
-            </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            {players.isPending ? (
-              <div className="flex flex-col gap-2 p-3">
-                {[...Array(5)].map((_, i) => (
-                  <Skeleton key={i} className="h-10" />
-                ))}
-              </div>
-            ) : players.isError ? (
-              <div className="p-3">
-                <ErrorState error={players.error} onRetry={() => players.refetch()} />
-              </div>
-            ) : (
-              <ul className="divide-y divide-edge">
-                {players.data.data.items.map((v) => (
-                  <li key={v.player_id}>
-                    <Link
-                      href={`/app/players/${v.player_id}`}
-                      className="flex items-center justify-between px-3 py-2 transition-colors hover:bg-raised"
-                    >
-                      <span className="min-w-0">
-                        <span className="block truncate text-sm font-medium">{v.name}</span>
-                        <span className="text-xs text-fg-muted">{v.position}</span>
-                      </span>
-                      <span className="num text-sm font-semibold text-accent">
-                        {fmtSigned(v.value_gap_eur, fmtEur)}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex-row items-center justify-between">
-            <CardTitle>Next fixtures</CardTitle>
-            <Link
-              href="/app/matches"
-              className="flex items-center gap-1 text-xs text-accent hover:underline"
-            >
-              Ledger <ArrowRight className="h-3 w-3" aria-hidden="true" />
-            </Link>
-          </CardHeader>
-          <CardContent className="p-0">
-            {fixtures.isPending ? (
-              <div className="flex flex-col gap-2 p-3">
-                {[...Array(5)].map((_, i) => (
-                  <Skeleton key={i} className="h-10" />
-                ))}
-              </div>
-            ) : fixtures.isError ? (
-              <div className="p-3">
-                <ErrorState error={fixtures.error} onRetry={() => fixtures.refetch()} />
-              </div>
-            ) : (
-              <ul className="divide-y divide-edge">
-                {fixtures.data.data.items.map((m) => (
-                  <li key={m.match_id}>
-                    <MatchCard match={m} compact />
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <TopScorers />
+        <BiggestGaps />
       </div>
     </div>
   );

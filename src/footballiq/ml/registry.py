@@ -26,7 +26,7 @@ class FeatureSpec:
     description: str
 
 
-VALUATION_FEATURE_VERSION = "1.0.0"
+VALUATION_FEATURE_VERSION = "1.1.0"
 
 VALUATION_FEATURES: tuple[FeatureSpec, ...] = (
     FeatureSpec("age_years", FeatureGroup.ATTRIBUTE,
@@ -56,6 +56,11 @@ VALUATION_FEATURES: tuple[FeatureSpec, ...] = (
     FeatureSpec("club_count", FeatureGroup.CONTEXT,
                 "Frequency encoding of club: squad members from same club "
                 "(ML design §2A fallback — leak-proof by construction)"),
+    FeatureSpec("club_avg_team_elo", FeatureGroup.CONTEXT,
+                "Mean national-team Elo across the club's World Cup players "
+                "(club-strength proxy; never touches market value)"),
+    FeatureSpec("club_nations", FeatureGroup.CONTEXT,
+                "Distinct nations the club supplies to the tournament"),
 )
 
 # Hard rule (ML design §2A rule 1): no feature may touch the label.

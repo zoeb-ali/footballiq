@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "footballiq"
-version = "1.1.0"
+version = "1.2.0"
 description = "FootballIQ Enterprise — Enterprise AI Decision Intelligence Platform (football demonstration domain)"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -31,7 +31,9 @@ graph = [
     "networkx>=3.0",
 ]
 rag = [
-    "sentence-transformers>=2.2",
+    # ONNX runtime build of bge-small-en-v1.5: same vectors as
+    # sentence-transformers without PyTorch, so it fits a 512 MB instance.
+    "fastembed>=0.7,<0.8",
     "pgvector>=0.2",
 ]
 portal = [
@@ -89,7 +91,7 @@ ignore = [
 # PLC0415: heavy ML deps (sklearn/xgboost/shap) import lazily so that
 # `make features` and the pipeline image work without the ml extra.
 "src/footballiq/ml/*" = ["PLC0415"]
-# PLC0415: sentence-transformers loads lazily (heavy) so serving/tests never
+# PLC0415: the embedding model (fastembed) loads lazily (heavy) so serving/tests never
 # pull it — same rationale as ml.
 "src/footballiq/infrastructure/ai/*" = ["PLC0415"]
 # Streamlit multipage requires numeric-prefixed filenames (pages/1_Name.py);
@@ -105,7 +107,7 @@ mypy_path = "src"
 packages = ["footballiq"]
 
 [[tool.mypy.overrides]]
-module = ["xgboost.*", "sklearn.*", "shap.*", "networkx.*", "sentence_transformers.*"]
+module = ["xgboost.*", "sklearn.*", "shap.*", "networkx.*", "fastembed.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

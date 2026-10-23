@@ -1,23 +1,57 @@
 import { cn } from "@/lib/utils";
 
 /**
- * Team/entity monogram — the dataset carries no crest imagery, so identity
- * is a deliberate generated badge (FIFA code on a confederation hue), not a
- * scraped copyrighted crest.
+ * National flag (SVG from flag-icons, MIT, copied to /public/flags for the
+ * 48 teams). Decorative next to a team name, so alt="" by default; pass
+ * `label` when the flag stands alone.
  */
+const SIZES = {
+  xs: { w: 16, h: 12 },
+  sm: { w: 20, h: 15 },
+  md: { w: 28, h: 21 },
+  lg: { w: 44, h: 33 },
+  xl: { w: 64, h: 48 },
+} as const;
 
-const CONFED_HUES: Record<string, string> = {
-  UEFA: "bg-info-dim text-info",
-  CONMEBOL: "bg-accent-dim text-accent",
-  CONCACAF: "bg-signal-dim text-signal",
-  CAF: "bg-critical-dim text-critical",
-  AFC: "bg-[rgba(192,132,252,0.12)] text-[#c084fc]",
-  OFC: "bg-[rgba(34,211,238,0.12)] text-[#22d3ee]",
-};
+export function Flag({
+  code,
+  size = "sm",
+  label,
+  className,
+}: {
+  code: string;
+  size?: keyof typeof SIZES;
+  label?: string;
+  className?: string;
+}) {
+  const s = SIZES[size];
+  if (!code || code === "TBD") {
+    return (
+      <span
+        aria-hidden={label ? undefined : true}
+        aria-label={label}
+        style={{ width: s.w, height: s.h }}
+        className={cn("inline-block shrink-0 border border-dashed border-rule-strong bg-paper", className)}
+      />
+    );
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- tiny static SVGs; next/image adds nothing
+    <img
+      src={`/flags/${code}.svg`}
+      alt={label ?? ""}
+      width={s.w}
+      height={s.h}
+      loading="lazy"
+      decoding="async"
+      className={cn("inline-block shrink-0 object-cover outline outline-1 -outline-offset-1 outline-black/10", className)}
+    />
+  );
+}
 
+/** Back-compat name used across pages: now a flag, not a coloured circle. */
 export function Monogram({
   code,
-  confederation,
   size = "md",
   className,
 }: {
@@ -26,20 +60,6 @@ export function Monogram({
   size?: "sm" | "md" | "lg";
   className?: string;
 }) {
-  const hue = (confederation && CONFED_HUES[confederation]) || "bg-raised text-fg-secondary";
-  return (
-    <span
-      aria-hidden="true"
-      className={cn(
-        "num inline-flex items-center justify-center rounded-full border border-edge font-semibold",
-        hue,
-        size === "sm" && "h-7 w-7 text-[10px]",
-        size === "md" && "h-10 w-10 text-xs",
-        size === "lg" && "h-14 w-14 text-sm",
-        className,
-      )}
-    >
-      {code}
-    </span>
-  );
+  const map = { sm: "sm", md: "md", lg: "lg" } as const;
+  return <Flag code={code} size={map[size]} className={className} />;
 }

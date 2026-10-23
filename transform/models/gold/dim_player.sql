@@ -4,6 +4,7 @@ select
     p.player_id          as player_sk,
     p.player_id          as player_id_nat,
     p.player_name,
+    p.full_name,
     p.position,
     p.club_team,
     p.market_value_eur,
@@ -15,4 +16,4 @@ select
 from {{ ref('silver_player') }} as p
 
 union all
-select -1, null, 'Unknown', null, null, null, null, null, null, null, -1
+select -1, null, 'Unknown', 'Unknown', null, null, null, null, null, null, null, -1

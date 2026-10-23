@@ -40,6 +40,11 @@ class Settings:
     # Browser origins allowed by CORS (FIQ_CORS_ORIGINS, comma-separated).
     # Empty = middleware not installed; the API stays same-origin-only.
     cors_origins: tuple[str, ...] = field(default=())
+    # Analyst retrieval mode (FIQ_ANALYST_RETRIEVAL): "semantic" embeds the
+    # question (ONNX model, ~200 MB RAM) and falls back to keyword search if the
+    # model cannot load; "keyword" uses Postgres full-text search only and
+    # never loads a model -- the safe choice on a 512 MB host.
+    analyst_retrieval: str = "semantic"
 
     @property
     def analyst_url(self) -> str:
@@ -57,4 +62,12 @@ def load_settings(dotenv_path: Path = Path(".env")) -> Settings:
         api_key_hashes=tuple(h.strip() for h in raw_hashes.split(",") if h.strip()),
         analyst_database_url=os.environ.get("FIQ_ANALYST_DATABASE_URL"),
         cors_origins=tuple(o.strip() for o in raw_origins.split(",") if o.strip()),
+        analyst_retrieval=_retrieval_mode(os.environ.get("FIQ_ANALYST_RETRIEVAL", "")),
     )
+
+
+def _retrieval_mode(raw: str) -> str:
+    mode = raw.strip().lower() or "semantic"
+    if mode not in {"semantic", "keyword"}:
+        raise ValueError(f"FIQ_ANALYST_RETRIEVAL must be semantic|keyword, got {raw!r}")
+    return mode

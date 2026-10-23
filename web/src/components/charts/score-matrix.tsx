@@ -1,79 +1,87 @@
 "use client";
 
-import { useMemo } from "react";
 import type { Simulation } from "@/lib/api/types";
-import { EChart } from "./echart";
+import { cn } from "@/lib/utils";
 
+/**
+ * Scoreline grid as a real table: rows are team A's goals, columns team B's.
+ * Ink density encodes share of runs; the most likely scoreline is ringed in
+ * marker red. Labels switch to white on dark cells so every value is legible.
+ */
 export function ScoreMatrix({ simulation }: { simulation: Simulation }) {
-  const option = useMemo(() => {
-    const axis = Array.from({ length: simulation.score_cap + 1 }, (_, i) =>
-      i === simulation.score_cap ? `${i}+` : String(i),
-    );
-    const data: [number, number, number][] = [];
-    let max = 0;
-    simulation.score_matrix.forEach((row, h) =>
-      row.forEach((share, a) => {
-        data.push([a, h, share]);
-        max = Math.max(max, share);
-      }),
-    );
-    return {
-      grid: { left: 8, right: 8, top: 32, bottom: 48, containLabel: true },
-      xAxis: {
-        type: "category",
-        data: axis,
-        name: `${simulation.away.fifa_code} goals`,
-        nameLocation: "middle",
-        nameGap: 28,
-        axisLabel: { color: "#a9b4c7" },
-        nameTextStyle: { color: "#8590a6" },
-      },
-      yAxis: {
-        type: "category",
-        data: axis,
-        name: `${simulation.home.fifa_code} goals`,
-        axisLabel: { color: "#a9b4c7" },
-        nameTextStyle: { color: "#8590a6" },
-      },
-      visualMap: {
-        min: 0,
-        max,
-        show: false,
-        inRange: { color: ["#131c2e", "#1d4f37", "#00e07a"] },
-      },
-      tooltip: {
-        backgroundColor: "#1b2740",
-        borderColor: "#33436a",
-        textStyle: { color: "#f2f4f8", fontSize: 12 },
-        formatter: (p: unknown) => {
-          const { data: d } = p as { data: [number, number, number] };
-          return `${simulation.home.fifa_code} ${axis[d[1]]} : ${axis[d[0]]} ${simulation.away.fifa_code}<br/>${(d[2] * 100).toFixed(2)}% of runs`;
-        },
-      },
-      series: [
-        {
-          type: "heatmap",
-          data,
-          label: {
-            show: true,
-            color: "#a9b4c7",
-            fontSize: 10,
-            formatter: (p: unknown) => {
-              const { data: d } = p as { data: [number, number, number] };
-              return d[2] >= 0.005 ? `${(d[2] * 100).toFixed(1)}` : "";
-            },
-          },
-          emphasis: { itemStyle: { borderColor: "#00e07a", borderWidth: 1 } },
-        },
-      ],
-    };
-  }, [simulation]);
+  const cap = simulation.score_cap;
+  const axis = Array.from({ length: cap + 1 }, (_, i) => (i === cap ? `${i}+` : String(i)));
+  let max = 0;
+  let best = { h: 0, a: 0 };
+  simulation.score_matrix.forEach((row, h) =>
+    row.forEach((v, a) => {
+      if (v > max) {
+        max = v;
+        best = { h, a };
+      }
+    }),
+  );
+  const a = simulation.home.fifa_code;
+  const b = simulation.away.fifa_code;
 
   return (
-    <EChart
-      option={option}
-      height={360}
-      ariaLabel={`Score distribution heatmap over ${simulation.n_runs} Monte Carlo runs for ${simulation.home.name} vs ${simulation.away.name}; most likely scoreline share shown per cell in percent`}
-    />
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[320px] border-collapse text-center tabular-nums">
+        <caption className="mb-2 text-left text-[13px] text-ink-2">
+          Share of {simulation.n_runs.toLocaleString("en")} runs ending in each scoreline. Rows: {a} goals. Columns: {b}{" "}
+          goals.
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col" className="w-12 pb-1 text-right text-[12px] font-semibold text-ink-3">
+              <span className="sr-only">{a} goals by {b} goals</span>
+              <span aria-hidden="true">
+                {a}\{b}
+              </span>
+            </th>
+            {axis.map((x) => (
+              <th key={x} scope="col" className="pb-1 text-[13px] font-semibold text-ink-2">
+                {x}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {simulation.score_matrix.map((row, h) => (
+            <tr key={h}>
+              <th scope="row" className="pr-2 text-right text-[13px] font-semibold text-ink-2">
+                {axis[h]}
+              </th>
+              {row.map((v, col) => {
+                const t = max ? v / max : 0;
+                // Two-tier ink: light cells stay at or below 44% ink (black text
+                // passes), dark cells start at 66% (white text passes). The mid-grey
+                // band where neither reaches 4.5:1 is never used.
+                const dark = t >= 0.5;
+                const alpha = dark ? 0.66 + (t - 0.5) * 0.6 : 0.04 + t * 0.8;
+                const isBest = h === best.h && col === best.a;
+                return (
+                  <td
+                    key={col}
+                    title={`${a} ${axis[h]}–${axis[col]} ${b}: ${(v * 100).toFixed(1)}% of runs`}
+                    className={cn(
+                      "h-11 border border-paper text-[13px]",
+                      dark ? "text-white" : "text-ink",
+                      isBest && "outline outline-2 -outline-offset-2 outline-marker",
+                    )}
+                    style={{ backgroundColor: `rgba(18, 20, 23, ${alpha.toFixed(3)})` }}
+                  >
+                    {v >= 0.005 ? (v * 100).toFixed(1) : <span className="opacity-40">·</span>}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="mt-2 text-[13px] text-ink-2">
+        Most likely: {a} {axis[best.h]}–{axis[best.a]} {b}, in {(max * 100).toFixed(1)}% of runs.
+      </p>
+    </div>
   );
 }

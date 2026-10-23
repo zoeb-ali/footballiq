@@ -46,7 +46,10 @@ Chunking: heading-aware Markdown, ~300–500 tokens. Exact scan at this
 scale; HNSW documented as scale flip-on.
 
 ## 5. Embeddings
-sentence-transformers (bge-small-en-v1.5 class), local, free. Same model
+BAAI/bge-small-en-v1.5 (384-dim) run through fastembed's ONNX runtime, local,
+free, no PyTorch (fits the 512 MB free tier; v1.2.0). Postgres full-text
+search is the fallback, or the sole mode with `FIQ_ANALYST_RETRIEVAL=keyword`.
+Same model
 for docs and queries. Batch re-index on content-hash diff (make target);
 embed_model_version stamped; model swap = full re-index. English MVP;
 German via bge-m3 = future extension.

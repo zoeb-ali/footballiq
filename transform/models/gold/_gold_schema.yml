@@ -91,7 +91,7 @@ models:
         tests:
           - accepted_values:
               arguments:
-                values: [Goal, Assist, Yellow Card, Red Card, VAR Review]
+                values: [Goal, Own Goal, Assist, Yellow Card, Red Card, VAR Review, Penalty Shootout Goal, Penalty Shootout Miss]
       - name: player_sk
         tests:
           - relationships:

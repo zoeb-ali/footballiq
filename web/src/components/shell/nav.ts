@@ -1,53 +1,48 @@
 import {
-  Activity,
-  BarChart3,
-  Bot,
-  CalendarDays,
-  GitCompareArrows,
-  LayoutDashboard,
-  Network,
-  ShieldCheck,
-  Sparkles,
-  Users,
-  UserSearch,
-  Wallet,
-} from "lucide-react";
+  TreeStructure,
+  ChartLineUp,
+  ChatCircleText,
+  Coins,
+  Flag,
+  Graph,
+  Heartbeat,
+  Scales,
+  SoccerBall,
+  UsersThree,
+  DiceFive,
+} from "@phosphor-icons/react";
 
+/** Grouped by what a visitor wants to do, in plain words (not system names). */
 export const NAV_GROUPS = [
-  {
-    label: "Overview",
-    items: [{ href: "/app/overview", label: "Command center", icon: LayoutDashboard }],
-  },
   {
     label: "Tournament",
     items: [
-      { href: "/app/matches", label: "Matches", icon: CalendarDays },
-      { href: "/app/simulator", label: "Simulator", icon: Sparkles },
+      { href: "/app/overview", label: "Overview", icon: SoccerBall },
+      { href: "/app/matches", label: "Matches", icon: TreeStructure },
+      { href: "/app/simulator", label: "Simulator", icon: DiceFive },
     ],
   },
   {
-    label: "Scouting",
+    label: "Players",
     items: [
-      { href: "/app/players", label: "Players", icon: UserSearch },
-      { href: "/app/valuations", label: "Valuations", icon: Wallet },
-      { href: "/app/teams", label: "Teams", icon: Users },
-      { href: "/app/compare", label: "Compare", icon: GitCompareArrows },
+      { href: "/app/players", label: "All players", icon: UsersThree },
+      { href: "/app/valuations", label: "Model vs market", icon: Coins },
     ],
   },
   {
-    label: "Intelligence",
+    label: "Nations",
     items: [
-      { href: "/app/analyst", label: "AI Analyst", icon: Bot },
-      { href: "/app/network", label: "Talent network", icon: Network },
+      { href: "/app/teams", label: "Teams", icon: Flag },
+      { href: "/app/compare", label: "Compare two", icon: Scales },
+      { href: "/app/network", label: "Club network", icon: Graph },
     ],
   },
   {
-    label: "Governance",
+    label: "Check the work",
     items: [
-      { href: "/app/models", label: "Model performance", icon: BarChart3 },
-      { href: "/app/status", label: "System status", icon: Activity },
+      { href: "/app/analyst", label: "Ask the analyst", icon: ChatCircleText },
+      { href: "/app/models", label: "Model report", icon: ChartLineUp },
+      { href: "/app/status", label: "System status", icon: Heartbeat },
     ],
   },
 ] as const;
-
-export const BRAND_ICON = ShieldCheck;

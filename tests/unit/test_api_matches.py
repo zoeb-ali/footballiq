@@ -20,7 +20,14 @@ _COMPLETED = MatchRecord(
     match_id=1, match_date="2026-06-11", kickoff_utc="19:00",
     stage_name="Group Stage", is_knockout=False, venue_name="Estadio Azteca",
     home_team=_MEXICO, away_team=_RSA, status="Completed",
-    home_score=2, away_score=0, home_xg=1.84, away_xg=0.52,
+    home_score=2, away_score=0, home_xg=1.84, away_xg=0.52, winner_side="home",
+)
+_SHOOTOUT = MatchRecord(
+    match_id=96, match_date="2026-07-07", kickoff_utc="20:00",
+    stage_name="Round of 16", is_knockout=True, venue_name="BC Place",
+    home_team=TeamSide(16, "Switzerland", "SUI"), away_team=TeamSide(44, "Colombia", "COL"),
+    status="Completed", home_score=0, away_score=0, home_xg=0.9, away_xg=1.1,
+    home_penalty_score=4, away_penalty_score=3, result_type="penalties", winner_side="home",
 )
 _SCHEDULED_TBD = MatchRecord(
     match_id=89, match_date="2026-07-04", kickoff_utc="21:00",
@@ -47,21 +54,23 @@ class _FakeMatches(MatchReadModel):
         return next((r for r in self._records if r.match_id == match_id), None)
 
 
-def _client() -> TestClient:
+def _client(records: list[MatchRecord] | None = None) -> TestClient:
     settings = Settings(
         database_url="sqlite://",
         data_dir=Path("data/raw"),
         api_key_hashes=(hashlib.sha256(_KEY.encode()).hexdigest(),),
     )
     app = create_app(settings)
-    app.state.match_queries = MatchQueries(_FakeMatches([_COMPLETED, _SCHEDULED_TBD]))
+    app.state.match_queries = MatchQueries(_FakeMatches(records or [_COMPLETED, _SCHEDULED_TBD]))
     return TestClient(app, raise_server_exceptions=False)
 
 
 def test_completed_match_carries_required_score_and_xg() -> None:
     body = _client().get("/v1/matches/1", headers=_AUTH).json()
     assert body["status"] == "Completed"
-    assert body["score"] == {"home": 2, "away": 0}
+    assert body["score"] == {
+        "home": 2, "away": 0, "penalties": None, "decided_by": "regular", "winner": "home",
+    }
     assert body["xg"]["home"] == 1.84
     assert body["away"]["kind"] == "team"
 
@@ -106,3 +115,11 @@ def test_contract_violation_in_gold_surfaces_as_500() -> None:
     client.app.state.match_queries = queries  # type: ignore[attr-defined]
     resp = client.get("/v1/matches/7", headers=_AUTH)
     assert resp.status_code == 500  # loud, never a silent half-answer
+
+
+def test_shootout_names_the_winner_and_penalty_score() -> None:
+    score = _client([_SHOOTOUT]).get("/v1/matches/96", headers=_AUTH).json()["score"]
+    assert score == {
+        "home": 0, "away": 0, "penalties": {"home": 4, "away": 3},
+        "decided_by": "penalties", "winner": "home",
+    }

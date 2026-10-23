@@ -13,6 +13,7 @@ from footballiq.application.read_models import PlayerFilter
 router = APIRouter(prefix="/v1/players", tags=["players"])
 
 _Position = Literal["GK", "DEF", "MID", "FWD"]
+_PlayerSort = Literal["market_value", "goals", "assists", "minutes"]
 
 
 def get_player_queries(request: Request) -> PlayerQueries:
@@ -21,18 +22,20 @@ def get_player_queries(request: Request) -> PlayerQueries:
 
 
 @router.get("", response_model=PlayerListResponse)
-def list_players(
+def list_players(  # noqa: PLR0913, PLR0917 -- FastAPI query params
     queries: Annotated[PlayerQueries, Depends(get_player_queries)],
     team_id: Annotated[int | None, Query()] = None,
     position: Annotated[_Position | None, Query()] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
+    sort: Annotated[_PlayerSort, Query()] = "market_value",
 ) -> PlayerListResponse:
-    """The player registry, filterable, ordered by market value descending."""
+    """The player registry, filterable. Default order is market value; `sort`
+    turns it into a tournament leaderboard (goals, assists, minutes)."""
     page = queries.list_players(
         limit=limit,
         offset=offset,
-        filters=PlayerFilter(team_id=team_id, position=position),
+        filters=PlayerFilter(team_id=team_id, position=position, sort=sort),
     )
     return PlayerListResponse(
         items=[PlayerResponse.from_record(r) for r in page.items],

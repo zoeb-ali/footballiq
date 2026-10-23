@@ -50,6 +50,8 @@ CREATE TABLE {p}feature_player_valuation (
     team_elo            INTEGER NOT NULL,
     team_fifa_ranking   INTEGER NOT NULL,
     club_count          INTEGER NOT NULL,
+    club_avg_team_elo   DOUBLE PRECISION NOT NULL,
+    club_nations        INTEGER NOT NULL,
     PRIMARY KEY (player_sk, feature_version)
 )
 """
@@ -73,6 +75,18 @@ events AS (
     FROM {p}fact_match_event
     GROUP BY player_sk
 ),
+clubs AS (
+    -- Club strength proxies from the tournament itself (never the label):
+    -- how strong the nations are whose players the club employs, and how many
+    -- different nations it supplies.
+    SELECT p.club_team,
+           AVG(t.elo_rating * 1.0)                            AS club_avg_team_elo,
+           COUNT(DISTINCT p.team_sk)                          AS club_nations
+    FROM {p}dim_player p
+    JOIN {p}dim_team t ON p.team_sk = t.team_sk
+    WHERE p.player_sk > 0
+    GROUP BY p.club_team
+),
 raw AS (
     SELECT
         p.player_sk,
@@ -93,9 +107,12 @@ raw AS (
         CASE WHEN COALESCE(m.minutes_played, 0) < 90 THEN 1 ELSE 0 END AS low_minutes_flag,
         t.elo_rating                                          AS team_elo,
         t.fifa_ranking                                        AS team_fifa_ranking,
-        COUNT(*) OVER (PARTITION BY p.club_team)              AS club_count
+        COUNT(*) OVER (PARTITION BY p.club_team)              AS club_count,
+        c.club_avg_team_elo,
+        c.club_nations
     FROM {p}dim_player p
     JOIN {p}dim_team t ON p.team_sk = t.team_sk
+    JOIN clubs c ON c.club_team = p.club_team
     LEFT JOIN minutes m ON m.player_sk = p.player_sk
     LEFT JOIN events e ON e.player_sk = p.player_sk
     WHERE p.player_sk > 0
@@ -113,7 +130,8 @@ SELECT
              AVG(assists_p90_raw) OVER (PARTITION BY position), 0) AS assists_p90,
     COALESCE(cards_p90_raw,
              AVG(cards_p90_raw) OVER (PARTITION BY position), 0)   AS cards_p90,
-    low_minutes_flag, team_elo, team_fifa_ranking, club_count
+    low_minutes_flag, team_elo, team_fifa_ranking, club_count,
+    club_avg_team_elo, club_nations
 FROM raw
 """
 

@@ -31,6 +31,23 @@ Browser ── Vercel (web/, BFF proxy holds the API key)
    (skip statements that already applied via the dump; the script is idempotent
    where it matters).
 
+### Refreshing the data on an existing Neon database
+
+After a new dataset release (`make pipeline` + `make demo` locally), reload only
+the warehouse schemas, without touching roles or the `ai` schema:
+
+```bash
+pg_dump --no-owner --no-privileges --clean --if-exists \
+  -n bronze -n silver -n gold \
+  "postgresql://fiq:fiq_local_dev@localhost:5432/footballiq" > warehouse.sql
+psql "$NEON_DATABASE_URL" --single-transaction -v ON_ERROR_STOP=1 -f warehouse.sql
+```
+
+`--single-transaction` means a failure leaves the old data in place. Keep the
+connection string in an environment variable or your password manager, never
+in the repo or a chat. Re-grant read access to `fiq_api`/`fiq_analyst` if the
+dump recreated the schemas.
+
 Free-tier limits: ~0.5 GB storage (the warehouse is far smaller), autosuspend
 after inactivity (cold start ≈ 1 s — negligible next to Render's).
 
@@ -52,10 +69,12 @@ Free-tier limits (be honest about these — the frontend is designed for them):
 - **Sleeps after ~15 min idle; cold start 30–60 s.** Read pages fall back to
   labeled snapshots; the UI shows "backend waking" states.
 - **512 MB RAM.** All read endpoints and the simulator are lightweight. The
-  RAG analyst loads a sentence-transformers model on first use and **may
-  exceed free-tier memory**; if it OOMs, the analyst page shows its designed
-  degraded state while everything else keeps working. Options: accept it,
-  or run the API on any small paid instance to enable the analyst.
+  analyst embeds questions with fastembed (ONNX build of bge-small, no
+  PyTorch), loaded on first use, and serves one question at a time. If the
+  instance still runs short of memory, set `FIQ_ANALYST_RETRIEVAL=keyword`:
+  retrieval then uses Postgres full-text search and no model is ever loaded.
+  (Before v1.2.0 the sentence-transformers + PyTorch stack OOM-killed the
+  instance on the first question.)
 - ~750 instance-hours/month — fine for a single service.
 
 ## 3. Frontend — Vercel
@@ -66,7 +85,9 @@ Free-tier limits (be honest about these — the frontend is designed for them):
    - `FIQ_API_URL` — `https://<service>.onrender.com`
    - `FIQ_API_KEY` — the demo key (plaintext; it lives only server-side —
      the browser talks to the BFF proxy, never to Render directly)
-   - `NEXT_PUBLIC_SITE_URL` — the Vercel URL (or custom domain)
+   - `NEXT_PUBLIC_SITE_URL` — optional; only for a custom domain. When unset the
+     site uses Vercel's production URL, and a stale `*.vercel.app` value is
+     ignored in favour of it (canonical links, sitemap, social cards)
 3. Deploy. Then capture snapshot fallbacks and commit them:
 
    ```bash
@@ -76,8 +97,10 @@ Free-tier limits (be honest about these — the frontend is designed for them):
    git add snapshots && git commit -m "chore(web): refresh API snapshots"
    ```
 
-   (Snapshots are real captured API responses; the proxy serves them, labeled,
-   only when the live API is unreachable.)
+   (Snapshots are real captured API responses, one gzip bundle covering every
+   page, served labelled "Saved copy" only when the live API doesn't answer
+   within 3.5 s. Re-capture after every data refresh, or the fallback shows the
+   previous data.)
 
 Netlify mirror (optional): same settings — base directory `web`, the
 `@netlify/plugin-nextjs` runtime is auto-detected. GitHub Pages is **not**

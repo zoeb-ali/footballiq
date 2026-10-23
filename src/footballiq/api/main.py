@@ -34,10 +34,10 @@ from footballiq.application.queries import (
 )
 from footballiq.application.rag.pipeline import AnalystService
 from footballiq.application.simulation import SimulationService
-from footballiq.infrastructure.ai.embeddings import SentenceTransformerEmbedder
+from footballiq.infrastructure.ai.embeddings import OnnxEmbedder
 from footballiq.infrastructure.ai.fact_provider import GoldFactProvider
 from footballiq.infrastructure.ai.query_log import PgQueryLog
-from footballiq.infrastructure.ai.retriever import SemanticRetriever
+from footballiq.infrastructure.ai.retriever import KeywordRetriever, SemanticRetriever
 from footballiq.infrastructure.ai.vector_store import PgVectorChunkStore
 from footballiq.infrastructure.config import Settings, load_settings
 from footballiq.infrastructure.gold.graph import GoldGraphReadModel
@@ -79,11 +79,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # Analyst reads through a least-privilege engine (fiq_analyst: gold + ai
     # only); audit writes go through the app-owner engine.
     analyst_engine = create_engine(settings.analyst_url, pool_pre_ping=True)
+    keyword = KeywordRetriever(analyst_engine)
+    retriever: KeywordRetriever | SemanticRetriever = (
+        keyword
+        if settings.analyst_retrieval == "keyword"
+        else SemanticRetriever(
+            OnnxEmbedder(), PgVectorChunkStore(analyst_engine), fallback=keyword
+        )
+    )
     app.state.analyst_service = AnalystService(
         facts=GoldFactProvider(analyst_engine),
-        retriever=SemanticRetriever(
-            SentenceTransformerEmbedder(), PgVectorChunkStore(analyst_engine)
-        ),
+        retriever=retriever,
         log=PgQueryLog(engine),
     )
 

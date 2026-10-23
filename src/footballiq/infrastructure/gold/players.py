@@ -10,6 +10,7 @@ from footballiq.application.read_models import (
     PlayerReadModel,
     PlayerRecord,
     TeamSide,
+    TournamentStats,
 )
 
 _SELECT = """
@@ -17,13 +18,29 @@ SELECT
     p.player_id_nat, p.player_name, p.position, p.club_team,
     p.market_value_eur, p.caps, p.international_goals,
     p.date_of_birth, p.height_cm,
-    t.team_id_nat, t.team_name, t.fifa_code
+    t.team_id_nat, t.team_name, t.fifa_code,
+    s.matches_played, s.matches_started, s.minutes_played, s.goals, s.assists,
+    s.yellow_cards, s.red_cards
 FROM {p}dim_player p
 JOIN {p}dim_team t ON p.team_sk = t.team_sk
+LEFT JOIN {p}player_tournament_snapshot s ON s.player_sk = p.player_sk
 WHERE p.player_sk > 0
 """
-# Scout-first ordering: most valuable players open the catalog.
-_ORDER = " ORDER BY p.market_value_eur DESC, p.player_name"
+# Scout-first by default; leaderboards break ties by fewer minutes (more efficient).
+_ORDERS = {
+    "market_value": " ORDER BY p.market_value_eur DESC, p.player_name",
+    "goals": " ORDER BY COALESCE(s.goals, 0) DESC, COALESCE(s.assists, 0) DESC,"
+    " COALESCE(s.minutes_played, 0), p.player_name",
+    "assists": " ORDER BY COALESCE(s.assists, 0) DESC, COALESCE(s.goals, 0) DESC,"
+    " COALESCE(s.minutes_played, 0), p.player_name",
+    "minutes": " ORDER BY COALESCE(s.minutes_played, 0) DESC, p.player_name",
+}
+_ORDER = _ORDERS["market_value"]
+
+
+def _int(row: RowMapping, key: str) -> int:
+    value = row.get(key)
+    return 0 if value is None else int(str(value))
 
 
 def _record(row: RowMapping) -> PlayerRecord:
@@ -41,6 +58,19 @@ def _record(row: RowMapping) -> PlayerRecord:
             team_id=int(str(row["team_id_nat"])),
             name=str(row["team_name"]),
             fifa_code=str(row["fifa_code"]),
+        ),
+        tournament=(
+            None
+            if row.get("matches_played") is None
+            else TournamentStats(
+                matches=_int(row, "matches_played"),
+                starts=_int(row, "matches_started"),
+                minutes=_int(row, "minutes_played"),
+                goals=_int(row, "goals"),
+                assists=_int(row, "assists"),
+                yellow_cards=_int(row, "yellow_cards"),
+                red_cards=_int(row, "red_cards"),
+            )
         ),
     )
 
@@ -69,7 +99,10 @@ class GoldPlayerReadModel(PlayerReadModel):
     ) -> list[PlayerRecord]:
         clauses, params = _filters_sql(filters)
         query = text(
-            _SELECT.format(p=self._p) + clauses + _ORDER + " LIMIT :limit OFFSET :offset"
+            _SELECT.format(p=self._p)
+            + clauses
+            + _ORDERS.get(filters.sort, _ORDER)
+            + " LIMIT :limit OFFSET :offset"
         )
         with self._engine.connect() as conn:
             rows = conn.execute(

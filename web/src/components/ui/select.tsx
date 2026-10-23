@@ -2,16 +2,13 @@
 
 import { cn } from "@/lib/utils";
 
-/** Native select, token-styled: reliable, accessible, zero-JS overhead. */
-export function Select({
-  className,
-  ...props
-}: React.SelectHTMLAttributes<HTMLSelectElement>) {
+/** Native select: reliable, accessible, explicit colours for Windows. */
+export function Select({ className, ...props }: React.SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <select
       className={cn(
-        "h-10 rounded-md border border-edge bg-raised px-3 pr-8 text-sm text-fg " +
-          "focus-visible:border-accent focus-visible:outline-none cursor-pointer",
+        "h-11 cursor-pointer rounded-[3px] border border-rule-strong bg-sheet px-3 pr-8 text-ink " +
+          "hover:border-ink focus-visible:border-ink",
         className,
       )}
       {...props}

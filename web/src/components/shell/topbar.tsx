@@ -1,65 +1,57 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { LogOut, Menu, Search } from "lucide-react";
+import { List, MagnifyingGlass } from "@phosphor-icons/react";
 import { useHealth } from "@/lib/api/queries";
 import { useUiStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
+import { Wordmark } from "./wordmark";
 
-function LiveDot() {
+/** Honest status: /health is never served from a snapshot, so this can't lie. */
+function ApiStatus() {
   const health = useHealth();
   const up = health.data?.data.status === "alive";
-  const label = health.isPending ? "checking API" : up ? "API live" : "API waking / snapshot mode";
+  const state = health.isPending ? "checking" : up ? "live" : "asleep";
+  const label =
+    state === "checking" ? "Checking API" : state === "live" ? "Live API" : "API asleep, showing saved data";
   return (
-    <span className="flex items-center gap-1.5 text-[11px] text-fg-muted" title={label}>
+    <span className="flex items-center gap-2 text-[13px] text-ink-2" role="status" title={label}>
       <span
         aria-hidden="true"
         className={cn(
           "h-2 w-2 rounded-full",
-          health.isPending ? "bg-fg-muted" : up ? "bg-accent" : "bg-signal",
+          state === "checking" && "bg-rule-strong",
+          state === "live" && "bg-pitch",
+          state === "asleep" && "bg-caution",
         )}
       />
-      <span className="hidden sm:inline">{label}</span>
+      <span className={cn(state === "live" ? "hidden sm:inline" : "hidden md:inline")}>{label}</span>
     </span>
   );
 }
 
 export function Topbar() {
   const { setSidebarOpen, setPaletteOpen } = useUiStore();
-  const router = useRouter();
-
-  async function signOut() {
-    await fetch("/api/session", { method: "DELETE" });
-    router.push("/");
-  }
-
   return (
-    <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-edge bg-base/80 px-4 backdrop-blur">
+    <header className="sticky top-0 z-40 flex h-16 items-center gap-3 border-b border-rule bg-paper/95 px-4 backdrop-blur-sm sm:px-6">
       <button
         aria-label="Open navigation"
-        className="rounded-md p-2 text-fg-secondary hover:bg-raised lg:hidden"
+        className="grid h-11 w-11 place-items-center rounded-[3px] text-ink hover:bg-tint lg:hidden"
         onClick={() => setSidebarOpen(true)}
       >
-        <Menu className="h-5 w-5" aria-hidden="true" />
+        <List size={22} aria-hidden="true" />
       </button>
+      <Wordmark className="lg:hidden" />
       <button
         onClick={() => setPaletteOpen(true)}
-        className="flex h-9 flex-1 max-w-md items-center gap-2 rounded-md border border-edge bg-raised px-3 text-sm text-fg-muted transition-colors hover:border-edge-strong"
+        aria-label="Search teams and players"
+        className="ml-auto flex h-11 items-center gap-2 rounded-[3px] border border-rule-strong bg-sheet px-3 text-[15px] text-ink-3 transition-colors hover:border-ink lg:ml-0 lg:w-full lg:max-w-md"
       >
-        <Search className="h-4 w-4" aria-hidden="true" />
-        <span className="flex-1 text-left">Search teams, players…</span>
-        <kbd className="num hidden rounded border border-edge bg-surface px-1.5 py-0.5 text-[10px] sm:inline">
-          ⌘K
-        </kbd>
+        <MagnifyingGlass size={18} aria-hidden="true" />
+        <span className="hidden flex-1 text-left lg:inline">Search teams and players…</span>
+        <kbd className="hidden rounded-[2px] border border-rule px-1.5 py-0.5 text-xs text-ink-3 lg:inline">⌘&nbsp;K</kbd>
       </button>
-      <div className="ml-auto flex items-center gap-3">
-        <LiveDot />
-        <button
-          onClick={signOut}
-          className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-fg-secondary hover:bg-raised hover:text-fg"
-        >
-          <LogOut className="h-3.5 w-3.5" aria-hidden="true" /> Exit demo
-        </button>
+      <div className="flex items-center gap-3 lg:ml-auto">
+        <ApiStatus />
       </div>
     </header>
   );

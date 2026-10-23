@@ -1,171 +1,208 @@
 import Link from "next/link";
-import {
-  ArrowRight,
-  Bot,
-  GitBranch,
-  Network,
-  ShieldCheck,
-  Sparkles,
-  Workflow,
-} from "lucide-react";
-import { AnimatedStat } from "@/components/marketing/animated-stat";
-import { MatchPredictor } from "@/components/marketing/match-predictor";
-import { upstreamFetch } from "@/lib/api/server";
+import { LandingChart } from "@/components/bracket/landing-chart";
+import { SourceBadge } from "@/components/domain/source-badge";
+import { Wordmark } from "@/components/shell/wordmark";
+import { getAllMatches, getTeams } from "@/lib/api/server-data";
+import { fmtDate, fmtNum, fmtVenue } from "@/lib/format";
+import { SITE } from "@/lib/site";
+import { buildBracket, favouriteRecord, isCompleted, resultNote, winnerId } from "@/lib/tournament";
 
+// The tournament is over; the page only changes when the data is rebuilt.
 export const revalidate = 3600;
 
-async function fetchStat(path: string): Promise<{ total: number } | null> {
-  try {
-    const result = await upstreamFetch(`${path}?limit=1`);
-    if (result.status !== 200) return null;
-    return JSON.parse(result.body) as { total: number };
-  } catch {
-    return null;
-  }
-}
-
-const FEATURES = [
+const INSIDE = [
   {
-    icon: ShieldCheck,
-    title: "SHAP you can verify",
-    body: "Every valuation ships its full attribution. The additivity invariant — baseline + Σ contributions = prediction — is recomputed live in your browser.",
+    href: "/app/valuations",
+    title: "Model vs market",
+    body:
+      "A gradient-boosted model estimates every player's value from tournament data. Each estimate opens into " +
+      "the exact contribution of every feature, and the page says plainly how often the model lands near the " +
+      "market price.",
   },
   {
-    icon: Bot,
-    title: "An analyst that cites its SQL",
-    body: "Grounded RAG: numbers come only from executed SQL, definitions from indexed docs. Unverifiable numbers get flagged, not stated.",
+    href: "/app/simulator",
+    title: "Match simulator",
+    body:
+      "Seeded Monte Carlo over Elo ratings. Same inputs, same seed, same answer, with 95% ranges and its " +
+      "assumptions printed next to the numbers.",
   },
   {
-    icon: Sparkles,
-    title: "Seeded Monte Carlo",
-    body: "Match simulation over warehouse Elo ratings with Wilson confidence intervals and its assumptions returned in-band. Deterministic per seed.",
+    href: "/app/analyst",
+    title: "Ask the analyst",
+    body:
+      "Answers take their numbers from SQL run against the warehouse and cite where each one came from. If a " +
+      "number can't be traced, the answer is flagged rather than guessed.",
   },
   {
-    icon: Network,
-    title: "Talent-flow graph",
-    body: "A club↔nation supply network with supplier-concentration risk (HHI) per squad — enterprise risk vocabulary on football data.",
+    href: "/app/network",
+    title: "Club network",
+    body: "Which clubs supplied which nations, and how dependent each squad was on a handful of clubs.",
   },
   {
-    icon: GitBranch,
-    title: "Model governance",
-    body: "Registry lineage: versions, params, seeds, git commits, and CV metrics next to honest baselines. 'Better than what?' is always answered.",
-  },
-  {
-    icon: Workflow,
-    title: "Clean architecture, end to end",
-    body: "Medallion warehouse, 68 data contracts, strict layered imports enforced in CI, 150+ tests, typed API contract shared with this frontend.",
+    href: "/app/models",
+    title: "Model report",
+    body:
+      "Cross-validated scores next to two simple baselines. The model is only published if it beats both, " +
+      "and the page shows by how little.",
   },
 ];
 
-export default async function LandingPage() {
-  const [teams, players, valuations] = await Promise.all([
-    fetchStat("/v1/teams"),
-    fetchStat("/v1/players"),
-    fetchStat("/v1/valuations"),
-  ]);
-  const live = teams !== null;
+export default async function Home() {
+  const [matchesRes, teamsRes] = await Promise.all([getAllMatches(), getTeams()]);
+  const matches = matchesRes?.data ?? [];
+  const teams = teamsRes?.data ?? [];
+  const saved = matchesRes?.source === "snapshot" || teamsRes?.source === "snapshot";
+
+  const completed = matches.filter(isCompleted);
+  const goals = completed.reduce((n, m) => n + m.score.home + m.score.away, 0);
+  const bracket = buildBracket(matches);
+  const final = bracket?.final.match ?? null;
+  const champion = final ? (winnerId(final) === final.home.team_id ? final.home : final.away) : null;
+  const runnerUp = final && champion ? (champion.team_id === final.home.team_id ? final.away : final.home) : null;
+  const fav = favouriteRecord(matches, teams);
 
   return (
     <div className="min-h-dvh">
-      <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
-        <span className="flex items-center gap-2">
-          <ShieldCheck className="h-6 w-6 text-accent" aria-hidden="true" />
-          <span className="font-display text-lg font-bold tracking-tight">
-            Football<span className="text-accent">IQ</span>
-          </span>
-        </span>
-        <nav className="flex items-center gap-4">
+      <header className="mx-auto flex max-w-[1240px] items-center justify-between gap-4 px-5 py-5 sm:px-8">
+        <Wordmark />
+        <nav aria-label="Site" className="flex items-center gap-2 sm:gap-4">
           <a
-            href="https://github.com/zoeb7184/footballiq"
-            className="text-sm text-fg-secondary transition-colors hover:text-fg"
+            href={SITE.repo}
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
+            className="hidden h-11 items-center px-2 text-[15px] font-semibold text-ink-2 hover:text-ink sm:inline-flex"
           >
-            GitHub
+            Source code
           </a>
           <Link
-            href="/login"
-            className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-black transition-opacity hover:opacity-90"
+            href="/app/overview"
+            className="inline-flex h-11 items-center rounded-[3px] bg-ink px-4 text-[15px] font-semibold text-paper hover:bg-[#2a2e33]"
           >
-            Launch demo
+            Open the app
           </Link>
         </nav>
       </header>
 
-      <main className="mx-auto max-w-6xl px-6">
-        <section className="hero-backdrop flex flex-col items-center gap-5 py-12 text-center sm:py-14">
-          <span className="rounded-full border border-edge bg-surface px-3 py-1 text-xs text-fg-secondary">
-            Decision intelligence · demonstrated on the FIFA World Cup 2026
-          </span>
-          <h1 className="font-display max-w-3xl text-4xl font-bold leading-tight tracking-tight sm:text-6xl">
-            AI you can <span className="text-accent">audit</span>.
+      <main id="main" className="mx-auto max-w-[1240px] px-5 pb-20 sm:px-8">
+        <section aria-labelledby="title" className="grid gap-6 border-b-2 border-ink pb-8 pt-6 lg:grid-cols-[1.4fr_1fr] lg:items-end">
+          <h1 id="title" className="display text-[clamp(3rem,9vw,6.5rem)]">
+            The 2026 World Cup,
+            <br />
+            filled in.
           </h1>
-          <p className="max-w-2xl text-base leading-relaxed text-fg-secondary sm:text-lg">
-            Explainable ML valuations, a grounded AI analyst that refuses to state a
-            number it can&apos;t trace to SQL, graph analytics, and seeded Monte Carlo
-            simulation — on a clean-architecture platform built end to end.
+          <div className="flex flex-col gap-4">
+            <p className="max-w-[46ch] text-[17px] leading-relaxed text-ink-2">
+              All 104 matches on one chart. Click any tie for the score, the expected goals and what the ratings
+              said beforehand, then run the simulator against what really happened.
+            </p>
+            {final && champion && runnerUp ? (
+              <p className="text-[17px] font-semibold leading-snug">
+                {champion.name} are world champions.{" "}
+                <span className="font-normal text-ink-2">
+                  They beat {runnerUp.name} {Math.max(final.score.home, final.score.away)}–
+                  {Math.min(final.score.home, final.score.away)}
+                  {resultNote(final) ? ` ${resultNote(final)}` : ""} at {fmtVenue(final.venue).split(",")[0]} on{" "}
+                  {fmtDate(final.date)}.
+                </span>
+              </p>
+            ) : null}
+            {saved ? (
+              <p className="flex items-center gap-2 text-[13px] text-ink-3">
+                <SourceBadge source="snapshot" /> Served from the last data build while the API sleeps.
+              </p>
+            ) : null}
+          </div>
+        </section>
+
+        <section aria-label="Knockout bracket" className="poster pt-10">
+          {matches.length ? (
+            <LandingChart matches={matches} teams={teams} />
+          ) : (
+            <p className="text-[17px] text-ink-2">
+              The match data couldn&rsquo;t be loaded just now. The <Link href="/app/matches" className="underline">match list</Link> retries on its own.
+            </p>
+          )}
+        </section>
+
+        <section aria-label="The tournament in figures" className="mt-14 grid grid-cols-2 gap-x-6 gap-y-8 md:grid-cols-4">
+          <Figure value={fmtNum(completed.length)} label="matches played, all in the data" />
+          <Figure value={fmtNum(goals)} label="goals, each one tied to a scorer and minute" />
+          <Figure
+            value={fav.ties ? `${fav.favouriteWent} of ${fav.ties}` : "n/a"}
+            label="knockout ties won by the higher-rated team"
+          />
+          <Figure value="1,248" label="players valued by the model, with a breakdown each" />
+        </section>
+        {fav.biggestUpset ? (
+          <p className="mt-6 max-w-[70ch] text-[15px] leading-relaxed text-ink-2">
+            Biggest upset by the ratings:{" "}
+            <strong className="text-ink">
+              {fav.biggestUpset.match.home.name} {fav.biggestUpset.match.score.home}–{fav.biggestUpset.match.score.away}{" "}
+              {fav.biggestUpset.match.away.name}
+            </strong>{" "}
+            in the {fav.biggestUpset.match.stage.toLowerCase()}, where the side that went through had an Elo expectancy
+            of {Math.round(fav.biggestUpset.underdogChance * 100)}%.
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <Link
-              href="/login"
-              className="flex items-center gap-2 rounded-md bg-accent px-6 py-3 font-medium text-black transition-opacity hover:opacity-90"
-            >
-              Explore the platform <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </Link>
-            <Link
-              href="/app/players"
-              className="rounded-md border border-edge bg-surface px-6 py-3 text-fg-secondary transition-colors hover:border-edge-strong hover:text-fg"
-            >
-              Skip to the data
-            </Link>
-          </div>
+        ) : null}
 
-          <div className="mt-2 flex justify-center">
-            <MatchPredictor />
+        <section aria-labelledby="inside" className="mt-16 grid gap-8 border-t-2 border-ink pt-8 lg:grid-cols-[1fr_2fr]">
+          <div>
+            <h2 id="inside" className="display text-4xl">What&rsquo;s inside</h2>
+            <p className="mt-3 max-w-[38ch] text-[15px] leading-relaxed text-ink-2">
+              Football is the demonstration. The point is that every number on this site can be traced back to the
+              data and the code that produced it.
+            </p>
           </div>
-
-          <dl className="glass mt-2 grid w-full max-w-2xl grid-cols-3 divide-x divide-edge rounded-xl">
-            {[
-              { label: "national teams", value: teams?.total },
-              { label: "players registered", value: players?.total },
-              { label: "ML valuations", value: valuations?.total },
-            ].map((stat) => (
-              <div key={stat.label} className="flex flex-col gap-1 p-5">
-                <dd>
-                  <AnimatedStat value={stat.value} />
-                </dd>
-                <dt className="text-xs text-fg-muted">{stat.label}</dt>
-              </div>
+          <ul className="divide-y divide-rule border-y border-rule">
+            {INSIDE.map((item) => (
+              <li key={item.href}>
+                <Link href={item.href} className="group grid gap-1 py-4 sm:grid-cols-[12rem_1fr] sm:gap-6">
+                  <span className="text-lg font-bold group-hover:text-marker group-hover:underline">{item.title}</span>
+                  <span className="text-[15px] leading-relaxed text-ink-2">{item.body}</span>
+                </Link>
+              </li>
             ))}
-          </dl>
-          <p className="num text-[11px] text-fg-muted">
-            {live
-              ? "figures fetched from the live API at page build"
-              : "live API asleep — figures unavailable rather than invented"}
-          </p>
-        </section>
-
-        <section className="grid gap-4 pb-20 sm:grid-cols-2 lg:grid-cols-3">
-          {FEATURES.map((f) => (
-            <article
-              key={f.title}
-              className="feature-card rounded-lg border border-edge bg-surface p-5"
-            >
-              <f.icon className="mb-3 h-6 w-6 text-accent" aria-hidden="true" />
-              <h2 className="font-display mb-1.5 font-semibold">{f.title}</h2>
-              <p className="text-sm leading-relaxed text-fg-secondary">{f.body}</p>
-            </article>
-          ))}
-        </section>
-
-        <section className="border-t border-edge py-12 text-center">
-          <p className="mx-auto max-w-xl text-sm leading-relaxed text-fg-muted">
-            Built as a portfolio flagship: FastAPI · medallion warehouse (dbt) ·
-            XGBoost + SHAP · NetworkX · pgvector RAG · Next.js. Every chart on this
-            site is a live API response — there are no mock numbers anywhere.
-          </p>
+          </ul>
         </section>
       </main>
+
+      <footer className="border-t border-rule">
+        <div className="mx-auto grid max-w-[1240px] gap-6 px-5 py-8 text-[13px] leading-relaxed text-ink-3 sm:px-8 md:grid-cols-3">
+          <p>
+            Designed and built by{" "}
+            <a className="font-semibold text-ink underline" href={SITE.authorUrl} target="_blank" rel="noopener noreferrer">
+              {SITE.author}
+            </a>
+            .{" "}
+            <a className="underline hover:text-ink" href={SITE.repo} target="_blank" rel="noopener noreferrer">
+              Source on GitHub
+            </a>
+            .
+          </p>
+          <p>
+            Match, squad and event data:{" "}
+            <a
+              className="underline hover:text-ink"
+              href="https://www.kaggle.com/datasets/mominullptr/fifa-world-cup-2026-dataset"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              FIFA World Cup 2026 Dataset
+            </a>{" "}
+            by Md Mominul Islam (CC0). Flags from flag-icons (MIT).
+          </p>
+          <p>An independent portfolio project, not affiliated with or endorsed by FIFA.</p>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+function Figure({ value, label }: { value: string; label: string }) {
+  return (
+    <div className="flex flex-col gap-1 border-t border-ink pt-2">
+      <span className="score text-[clamp(2.2rem,4vw,3rem)] leading-none">{value}</span>
+      <span className="text-[13px] leading-snug text-ink-2">{label}</span>
     </div>
   );
 }

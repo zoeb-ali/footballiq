@@ -2,24 +2,22 @@
 
 import Link from "next/link";
 import { use } from "react";
-import { ChevronLeft } from "lucide-react";
+import { CaretLeft } from "@phosphor-icons/react";
 import { ShapWaterfall } from "@/components/charts/shap-waterfall";
 import { PageHeader } from "@/components/domain/page-header";
 import { AccuracyNote, ProvenanceFooter } from "@/components/domain/provenance";
-import { ErrorState } from "@/components/domain/states";
 import { SourceBadge } from "@/components/domain/source-badge";
+import { ErrorState } from "@/components/domain/states";
 import { StatCard } from "@/components/domain/stat-card";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { useExplanation } from "@/lib/api/queries";
+import { featureLabel, featureValue } from "@/lib/features";
 import { fmtEur, fmtSigned } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
-export default function ExplanationPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default function ExplanationPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const explanation = useExplanation(Number(id));
 
@@ -31,91 +29,80 @@ export default function ExplanationPage({
       </div>
     );
   }
-  if (explanation.isError)
-    return (
-      <ErrorState error={explanation.error} onRetry={() => explanation.refetch()} />
-    );
+  if (explanation.isError) return <ErrorState error={explanation.error} onRetry={() => explanation.refetch()} />;
 
   const e = explanation.data.data;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-8">
       <Link
         href={`/app/players/${e.player_id}`}
-        className="flex w-fit items-center gap-1 text-xs text-fg-secondary hover:text-accent"
+        className="inline-flex min-h-11 w-fit items-center gap-1 text-[15px] font-semibold text-ink-2 hover:text-ink"
       >
-        <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" /> {e.name}
+        <CaretLeft size={16} aria-hidden="true" /> Back to {e.name}
       </Link>
       <PageHeader
-        title={`Why ${fmtEur(e.predicted_value_eur)}?`}
-        description={`The complete SHAP breakdown for ${e.name} — every contribution, and the additivity proof recomputed in your browser.`}
+        title={`Why the model says ${fmtEur(e.predicted_value_eur)}`}
+        description={`Every factor behind ${e.name}'s estimate, in order of how much it moved the number, rebuilt and checked in your browser.`}
         actions={<SourceBadge source={explanation.data.source} />}
       />
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <StatCard label="Predicted" value={fmtEur(e.predicted_value_eur)} />
-        <StatCard label="Market" value={fmtEur(e.market_value_eur)} />
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+        <StatCard label="Model estimate" value={fmtEur(e.predicted_value_eur)} />
+        <StatCard label="Market value" value={fmtEur(e.market_value_eur)} />
         <StatCard
           label="Gap"
           value={fmtSigned(e.value_gap_eur, fmtEur)}
-          tone={e.value_gap_eur >= 0 ? "accent" : "critical"}
+          tone={e.value_gap_eur >= 0 ? "critical" : undefined}
+          hint={e.value_gap_eur >= 0 ? "Model above market" : "Model below market"}
         />
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>SHAP waterfall</CardTitle>
-          <CardDescription>
-            Additive in log space; green raises the prediction, red lowers it.
-            Attributional, never causal.
-          </CardDescription>
+          <CardTitle>From a typical player to {e.name}</CardTitle>
+          <CardDescription>SHAP attributions from the gradient-boosted model, largest first.</CardDescription>
         </CardHeader>
         <CardContent>
           <ShapWaterfall explanation={e} />
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>All contributions</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <THead>
-              <TR>
-                <TH className="text-right">#</TH>
-                <TH>Feature</TH>
-                <TH className="text-right">Value</TH>
-                <TH className="text-right">shap_log</TH>
-                <TH className="text-right">× factor</TH>
-              </TR>
-            </THead>
-            <TBody>
-              {[...e.contributions]
-                .sort((a, b) => a.rank - b.rank)
-                .map((c) => (
-                  <TR key={c.feature_name}>
-                    <TD className="num text-right text-fg-muted">{c.rank}</TD>
-                    <TD>{c.feature_name}</TD>
-                    <TD className="num text-right">{c.feature_value}</TD>
-                    <TD
-                      className={`num text-right ${
-                        c.shap_log >= 0 ? "text-accent" : "text-critical"
-                      }`}
-                    >
-                      {c.shap_log.toFixed(4)}
-                    </TD>
-                    <TD className="num text-right">
-                      ×{c.multiplicative_factor.toFixed(3)}
-                    </TD>
-                  </TR>
-                ))}
-            </TBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <details className="group border-y border-rule">
+        <summary className="flex min-h-12 cursor-pointer items-center text-[15px] font-semibold">
+          The raw numbers for every factor
+        </summary>
+        <Table>
+          <THead>
+            <tr>
+              <TH>Factor</TH>
+              <TH className="text-right">His value</TH>
+              <TH className="text-right">Log contribution</TH>
+              <TH className="text-right">Multiplier</TH>
+            </tr>
+          </THead>
+          <TBody>
+            {[...e.contributions]
+              .sort((a, b) => a.rank - b.rank)
+              .map((c) => (
+                <TR key={c.feature_name}>
+                  <TD>
+                    {featureLabel(c.feature_name)}
+                    <span className="block text-[12px] text-ink-3">{c.feature_name}</span>
+                  </TD>
+                  <TD className="text-right">{featureValue(c.feature_name, c.feature_value)}</TD>
+                  <TD className={cn("text-right", c.shap_log >= 0 ? "text-marker" : "text-cool")}>
+                    {c.shap_log >= 0 ? "+" : ""}
+                    {c.shap_log.toFixed(4)}
+                  </TD>
+                  <TD className="text-right">×{c.multiplicative_factor.toFixed(3)}</TD>
+                </TR>
+              ))}
+          </TBody>
+        </Table>
+      </details>
 
-      <AccuracyNote note="Predictions are indicative: ~20% fall within ±20% of market on evaluation. SHAP explains the model, not the market." />
+      <AccuracyNote note="The model is right to within 20% for about one player in five. SHAP explains the model's reasoning, not the market's." />
       <ProvenanceFooter provenance={e} />
     </div>
   );

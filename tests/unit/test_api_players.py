@@ -97,6 +97,15 @@ def test_adapter_orders_by_value_and_filters() -> None:
             "(16,16,'Quinones','FWD','América',12000000,20,6,'1997-03-24',178,1), "
             "(-1,NULL,'Unknown',NULL,NULL,NULL,NULL,NULL,NULL,NULL,-1)"
         ))
+        conn.execute(text(
+            "CREATE TABLE player_tournament_snapshot (player_sk int, matches_played int, "
+            "matches_started int, minutes_played int, goals int, assists int, "
+            "yellow_cards int, red_cards int)"
+        ))
+        conn.execute(text(
+            "INSERT INTO player_tournament_snapshot VALUES "
+            "(1,3,3,270,1,0,1,0), (16,3,2,200,0,2,0,0)"
+        ))
     rm = GoldPlayerReadModel(engine, schema=None)
 
     names = [p.name for p in rm.list_players(limit=10, offset=0, filters=PlayerFilter())]
@@ -105,3 +114,47 @@ def test_adapter_orders_by_value_and_filters() -> None:
     found = rm.get_player(16)
     assert found is not None and found.market_value_eur == 12_000_000
     assert rm.get_player(404) is None
+    assert found.tournament is not None and found.tournament.assists == 2
+
+
+def test_adapter_leaderboard_sorts() -> None:
+    engine = create_engine("sqlite://")
+    with engine.begin() as conn:
+        conn.execute(text(
+            "CREATE TABLE dim_team (team_sk int, team_id_nat int, team_name text, fifa_code text)"
+        ))
+        conn.execute(text(
+            "CREATE TABLE dim_player (player_sk int, player_id_nat int, player_name text, "
+            "position text, club_team text, market_value_eur int, caps int, "
+            "international_goals int, date_of_birth text, height_cm int, team_sk int)"
+        ))
+        conn.execute(text(
+            "CREATE TABLE player_tournament_snapshot (player_sk int, matches_played int, "
+            "matches_started int, minutes_played int, goals int, assists int, "
+            "yellow_cards int, red_cards int)"
+        ))
+        conn.execute(text("INSERT INTO dim_team VALUES (1,1,'France','FRA')"))
+        conn.execute(text(
+            "INSERT INTO dim_player VALUES "
+            "(1,1,'A','FWD','X',100,1,0,'2000-01-01',180,1), "
+            "(2,2,'B','FWD','X',200,1,0,'2000-01-01',180,1), "
+            "(3,3,'C','MID','X',300,1,0,'2000-01-01',180,1)"
+        ))
+        conn.execute(text(
+            "INSERT INTO player_tournament_snapshot VALUES "
+            "(1,7,7,630,10,2,0,0), (2,7,7,600,4,5,0,0), (3,2,1,90,0,0,0,0)"
+        ))
+    rm = GoldPlayerReadModel(engine, schema=None)
+
+    def names(sort: str) -> list[str]:
+        rows = rm.list_players(limit=10, offset=0, filters=PlayerFilter(sort=sort))
+        return [p.name for p in rows]
+
+    assert names("goals") == ["A", "B", "C"]
+    assert names("assists") == ["B", "A", "C"]
+    assert names("market_value") == ["C", "B", "A"]
+
+
+def test_sort_param_validated() -> None:
+    assert _client().get("/v1/players", params={"sort": "goals"}, headers=_AUTH).status_code == 200
+    assert _client().get("/v1/players", params={"sort": "salary"}, headers=_AUTH).status_code == 422

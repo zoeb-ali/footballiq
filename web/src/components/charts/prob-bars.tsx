@@ -2,43 +2,60 @@
 
 import type { Simulation } from "@/lib/api/types";
 import { fmtPct } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
-/** Win/draw/loss with Wilson CIs — rendered as annotated bars, CI always visible. */
-export function ProbBars({ simulation }: { simulation: Simulation }) {
-  const rows = [
-    { label: `${simulation.home.name} win`, p: simulation.p_home_win, color: "var(--viz-1)" },
-    { label: "Draw", p: simulation.p_draw, color: "var(--viz-3)" },
-    { label: `${simulation.away.name} win`, p: simulation.p_away_win, color: "var(--viz-2)" },
+type Outcome = "home" | "draw" | "away";
+
+/**
+ * Win / draw / loss as one stacked bar: the three are parts of a single whole.
+ * Each segment's 95% Wilson interval is printed under it. When the real result
+ * is known, that outcome is marked in marker red, so the model can be judged.
+ */
+export function ProbBars({
+  simulation,
+  actual,
+  className,
+}: {
+  simulation: Simulation;
+  actual?: Outcome | null;
+  className?: string;
+}) {
+  const parts: { key: Outcome; label: string; p: Simulation["p_draw"]; fill: string }[] = [
+    { key: "home", label: `${simulation.home.name} win`, p: simulation.p_home_win, fill: "bg-ink" },
+    { key: "draw", label: "Draw", p: simulation.p_draw, fill: "bg-rule-strong" },
+    { key: "away", label: `${simulation.away.name} win`, p: simulation.p_away_win, fill: "bg-cool" },
   ];
   return (
-    <div className="flex flex-col gap-3" role="list" aria-label="Simulated outcome probabilities with 95% confidence intervals">
-      {rows.map((row) => (
-        <div key={row.label} role="listitem" className="flex flex-col gap-1">
-          <div className="flex items-baseline justify-between text-sm">
-            <span className="text-fg-secondary">{row.label}</span>
-            <span className="num font-semibold">
-              {fmtPct(row.p.value)}{" "}
-              <span className="text-xs font-normal text-fg-muted">
-                [{fmtPct(row.p.ci_low)} – {fmtPct(row.p.ci_high)}]
-              </span>
-            </span>
+    <figure className={cn("flex flex-col gap-3", className)}>
+      <div className="flex h-9 w-full overflow-hidden rounded-[2px]" aria-hidden="true">
+        {parts.map((part) => (
+          <div
+            key={part.key}
+            className={cn("relative h-full transition-[width] duration-500 ease-out", part.fill)}
+            style={{ width: `${part.p.value * 100}%` }}
+          >
+            {actual === part.key ? (
+              <span className="absolute inset-x-0 -bottom-0 h-1.5 bg-marker" />
+            ) : null}
           </div>
-          <div className="relative h-2.5 overflow-hidden rounded-full bg-raised">
-            <div
-              className="absolute inset-y-0 left-0 rounded-full transition-all duration-500"
-              style={{ width: `${row.p.value * 100}%`, background: row.color }}
-            />
-            <div
-              className="absolute inset-y-0 border-x border-white/40"
-              style={{
-                left: `${row.p.ci_low * 100}%`,
-                width: `${(row.p.ci_high - row.p.ci_low) * 100}%`,
-              }}
-              title={`95% CI: ${fmtPct(row.p.ci_low)} – ${fmtPct(row.p.ci_high)}`}
-            />
-          </div>
-        </div>
-      ))}
-    </div>
+        ))}
+      </div>
+      <figcaption>
+        <dl className="grid grid-cols-3 gap-3">
+          {parts.map((part) => (
+            <div key={part.key} className={cn(part.key === "draw" && "text-center", part.key === "away" && "text-right")}>
+              <dt className={cn("text-[13px] font-medium", actual === part.key ? "text-marker" : "text-ink-2")}>
+                {part.label}
+                {actual === part.key ? " (happened)" : ""}
+              </dt>
+              <dd className="score text-2xl leading-tight">{fmtPct(part.p.value, 0)}</dd>
+              <dd className="text-xs text-ink-3">
+                95% range {fmtPct(part.p.ci_low, 0)}–{fmtPct(part.p.ci_high, 0)}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </figcaption>
+    </figure>
   );
 }

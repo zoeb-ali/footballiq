@@ -2,18 +2,21 @@
 
 import Link from "next/link";
 import { use } from "react";
-import { ArrowRight } from "lucide-react";
-import { PageHeader } from "@/components/domain/page-header";
-import { Monogram } from "@/components/domain/monogram";
-import { AccuracyNote, ProvenanceFooter } from "@/components/domain/provenance";
+import { ValueScale } from "@/components/charts/value-scale";
+import { Flag } from "@/components/domain/monogram";
+import { ProvenanceFooter } from "@/components/domain/provenance";
+import { SourceBadge } from "@/components/domain/source-badge";
 import { ErrorState } from "@/components/domain/states";
 import { StatCard } from "@/components/domain/stat-card";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError } from "@/lib/api/client";
 import { usePlayer, useValuation } from "@/lib/api/queries";
-import { ageFrom, fmtEur, fmtSigned } from "@/lib/format";
+import { featureLabel, featureValue } from "@/lib/features";
+import { ageFrom, fmtDate, fmtEur, fmtNum, fmtSigned } from "@/lib/format";
+import { cn } from "@/lib/utils";
+
+const POSITION = { GK: "Goalkeeper", DEF: "Defender", MID: "Midfielder", FWD: "Forward" } as Record<string, string>;
 
 export default function PlayerPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -24,115 +27,124 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
   if (player.isPending) {
     return (
       <div className="flex flex-col gap-4">
-        <Skeleton className="h-20" />
+        <Skeleton className="h-24" />
         <Skeleton className="h-56" />
       </div>
     );
   }
-  if (player.isError)
-    return <ErrorState error={player.error} onRetry={() => player.refetch()} />;
+  if (player.isError) return <ErrorState error={player.error} onRetry={() => player.refetch()} />;
 
   const p = player.data.data;
-  const notScored =
-    valuation.isError &&
-    valuation.error instanceof ApiError &&
-    valuation.error.status === 404;
+  const t = p.tournament;
+  const notScored = valuation.isError && valuation.error instanceof ApiError && valuation.error.status === 404;
+  const v = valuation.data?.data;
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center gap-4">
-        <Monogram code={p.team.fifa_code} size="lg" />
+    <div className="flex flex-col gap-10">
+      <header className="flex flex-wrap items-end gap-5 border-b-2 border-ink pb-5">
+        <Flag code={p.team.fifa_code} size="xl" label={p.team.name} />
         <div className="min-w-0 flex-1">
-          <PageHeader title={p.name} />
-          <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-fg-secondary">
-            <Badge variant="info">{p.position}</Badge>
-            <span>{p.club}</span>
-            <span aria-hidden="true">·</span>
-            <Link href={`/app/teams/${p.team.team_id}`} className="hover:text-accent">
+          <h1 className="display text-[clamp(2.2rem,5vw,3.25rem)]">{p.name}</h1>
+          <p className="mt-2 text-[16px] text-ink-2">
+            {POSITION[p.position] ?? p.position} for{" "}
+            <Link href={`/app/teams/${p.team.team_id}`} className="font-semibold text-ink underline">
               {p.team.name}
             </Link>
-          </div>
+            , plays club football at {p.club.replace(/\.$/, "")}.
+          </p>
         </div>
-      </div>
+        <SourceBadge source={player.data.source} />
+      </header>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard label="Market value" value={fmtEur(p.market_value_eur)} />
-        <StatCard label="Age" value={ageFrom(p.date_of_birth) ?? "—"} hint={`height ${p.height_cm} cm`} />
-        <StatCard label="Caps" value={p.caps} />
-        <StatCard label="Int. goals" value={p.international_goals} />
-      </div>
+      <section aria-labelledby="tournament">
+        <h2 id="tournament" className="mb-4 text-xl font-bold">
+          At the 2026 World Cup
+        </h2>
+        {t && t.matches > 0 ? (
+          <div className="grid grid-cols-2 gap-x-6 gap-y-6 sm:grid-cols-3 lg:grid-cols-5">
+            <StatCard label="Matches" value={t.matches} hint={`${t.starts} as a starter`} />
+            <StatCard label="Minutes" value={fmtNum(t.minutes)} />
+            <StatCard label="Goals" value={t.goals} tone={t.goals ? "critical" : undefined} />
+            <StatCard label="Assists" value={t.assists} />
+            <StatCard
+              label="Cards"
+              value={t.yellow_cards + t.red_cards}
+              hint={`${t.yellow_cards} yellow, ${t.red_cards} red`}
+            />
+          </div>
+        ) : (
+          <p className="text-[15px] text-ink-2">Named in the squad but didn&rsquo;t play.</p>
+        )}
+      </section>
+
+      <section aria-labelledby="career">
+        <h2 id="career" className="mb-4 text-xl font-bold">
+          Profile
+        </h2>
+        <div className="grid grid-cols-2 gap-x-6 gap-y-6 sm:grid-cols-4">
+          <StatCard label="Age" value={ageFrom(p.date_of_birth) ?? ""} hint={`Born ${fmtDate(p.date_of_birth)}`} />
+          <StatCard label="Height" value={`${p.height_cm} cm`} />
+          <StatCard label="International caps" value={p.caps} />
+          <StatCard label="International goals" value={p.international_goals} hint="Career, before the tournament" />
+        </div>
+      </section>
 
       <Card>
-        <CardHeader className="flex-row items-center justify-between">
-          <div>
-            <CardTitle>Model valuation</CardTitle>
-            <CardDescription>
-              XGBoost prediction with its top SHAP attributions.
-            </CardDescription>
-          </div>
-          {valuation.data ? (
-            <Link
-              href={`/app/players/${p.player_id}/explanation`}
-              className="flex items-center gap-1 text-xs text-accent hover:underline"
-            >
-              Full explanation <ArrowRight className="h-3 w-3" aria-hidden="true" />
+        <CardHeader>
+          <CardTitle>What the model thinks he&rsquo;s worth</CardTitle>
+          {v ? (
+            <Link href={`/app/players/${p.player_id}/explanation`} className="text-[14px] font-semibold text-pitch underline">
+              Every factor, step by step
             </Link>
           ) : null}
+          <CardDescription>
+            A gradient-boosted model trained on tournament and profile data, never on the price it is compared with.
+          </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col gap-4">
+        <CardContent className="flex flex-col gap-6">
           {valuation.isPending ? (
             <Skeleton className="h-40" />
           ) : notScored ? (
-            <p className="text-sm text-fg-secondary">
-              This player has no model valuation (goalkeepers and low-minutes players
-              are excluded from scoring by design).
-            </p>
+            <p className="text-[15px] text-ink-2">The current model hasn&rsquo;t scored this player.</p>
           ) : valuation.isError ? (
             <ErrorState error={valuation.error} onRetry={() => valuation.refetch()} />
-          ) : (
+          ) : v ? (
             <>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <StatCard
-                  label="Predicted value"
-                  value={fmtEur(valuation.data.data.predicted_value_eur)}
-                />
-                <StatCard label="Market value" value={fmtEur(valuation.data.data.market_value_eur)} />
-                <StatCard
-                  label="Value gap"
-                  value={fmtSigned(valuation.data.data.value_gap_eur, fmtEur)}
-                  tone={valuation.data.data.value_gap_eur >= 0 ? "accent" : "critical"}
-                  hint={valuation.data.data.value_gap_eur >= 0 ? "model sees upside" : "model sees premium"}
-                />
-              </div>
+              <p className="text-[17px]">
+                Gap:{" "}
+                <strong className={cn("score text-2xl", v.value_gap_eur >= 0 ? "text-marker" : "text-cool")}>
+                  {fmtSigned(v.value_gap_eur, fmtEur)}
+                </strong>{" "}
+                <span className="text-ink-2">
+                  {v.value_gap_eur >= 0 ? "(the model prices him above the market)" : "(the model prices him below the market)"}
+                </span>
+              </p>
+              <ValueScale market={v.market_value_eur} model={v.predicted_value_eur} />
               <div>
-                <p className="mb-2 text-xs uppercase tracking-wide text-fg-muted">
-                  Top attributions (× on predicted value)
-                </p>
-                <ul className="flex flex-col gap-1.5">
-                  {valuation.data.data.top_k.map((c) => (
-                    <li
-                      key={c.feature_name}
-                      className="flex items-center justify-between rounded-md bg-raised px-3 py-2 text-sm"
-                    >
-                      <span className="text-fg-secondary">
-                        {c.feature_name}{" "}
-                        <span className="num text-xs text-fg-muted">= {c.feature_value}</span>
+                <h3 className="mb-2 text-[15px] font-bold">The five factors that moved his estimate most</h3>
+                <ul className="divide-y divide-rule border-y border-rule">
+                  {v.top_k.map((c) => (
+                    <li key={c.feature_name} className="grid grid-cols-[1fr_auto] items-baseline gap-x-4 py-2.5">
+                      <span title={c.feature_name}>
+                        {featureLabel(c.feature_name)}{" "}
+                        <span className="text-[13px] text-ink-3">({featureValue(c.feature_name, c.feature_value)})</span>
                       </span>
-                      <span
-                        className={`num font-semibold ${
-                          c.multiplicative_factor >= 1 ? "text-accent" : "text-critical"
-                        }`}
-                      >
-                        ×{c.multiplicative_factor.toFixed(3)}
+                      <span className={cn("score text-right text-lg", c.multiplicative_factor >= 1 ? "text-marker" : "text-cool")}>
+                        {c.multiplicative_factor >= 1
+                          ? `×${c.multiplicative_factor.toFixed(2)}`
+                          : `×${c.multiplicative_factor.toFixed(2)}`}
                       </span>
                     </li>
                   ))}
                 </ul>
+                <p className="mt-2 text-[13px] text-ink-3">
+                  Each factor multiplies the estimate: ×2.00 doubles it, ×0.50 halves it. Profile values are as of the
+                  tournament start.
+                </p>
               </div>
-              <AccuracyNote note={valuation.data.data.accuracy_note} />
-              <ProvenanceFooter provenance={valuation.data.data} />
+              <ProvenanceFooter provenance={v} />
             </>
-          )}
+          ) : null}
         </CardContent>
       </Card>
     </div>

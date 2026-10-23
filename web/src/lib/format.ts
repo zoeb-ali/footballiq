@@ -39,11 +39,21 @@ export function fmtDate(iso: string): string {
   const d = new Date(iso);
   return Number.isNaN(d.getTime())
     ? iso
-    : d.toLocaleDateString("en", { day: "numeric", month: "short", year: "numeric" });
+    : d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 }
 
 export function ageFrom(dobIso: string): number | null {
   const dob = new Date(dobIso);
   if (Number.isNaN(dob.getTime())) return null;
   return Math.floor((Date.now() - dob.getTime()) / (365.25 * 24 * 3600 * 1000));
+}
+
+/**
+ * Venue as people say it. The source names stadiums by FIFA's tournament
+ * label with the everyday name in brackets ("New York New Jersey Stadium
+ * (MetLife Stadium)"); show the everyday name with its city label.
+ */
+export function fmtVenue(venue: string): string {
+  const m = /^(.*?)\s*Stadium\s*\((.+)\)$/.exec(venue);
+  return m ? `${m[2]}, ${m[1]}` : venue;
 }

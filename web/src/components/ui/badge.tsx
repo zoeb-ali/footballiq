@@ -1,16 +1,17 @@
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
+/** Small printed tags: square corners, never pills. */
 const badgeVariants = cva(
-  "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium",
+  "inline-flex items-center gap-1 rounded-[2px] px-1.5 py-0.5 text-xs font-semibold leading-none",
   {
     variants: {
       variant: {
-        neutral: "bg-raised text-fg-secondary border border-edge",
-        accent: "bg-accent-dim text-accent",
-        signal: "bg-signal-dim text-signal",
-        critical: "bg-critical-dim text-critical",
-        info: "bg-info-dim text-info",
+        neutral: "border border-rule text-ink-2",
+        accent: "bg-pitch-wash text-pitch",
+        signal: "bg-caution-wash text-caution",
+        critical: "bg-marker-wash text-marker",
+        info: "bg-cool-wash text-cool",
       },
     },
     defaultVariants: { variant: "neutral" },

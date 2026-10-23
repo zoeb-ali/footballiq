@@ -1,195 +1,189 @@
 @import "tailwindcss";
+@import "@fontsource-variable/archivo/wdth.css";
 
 /* ---------------------------------------------------------------------------
-   FootballIQ design tokens (frontend blueprint §3)
-   Dark-first; light theme via [data-theme="light"].
+   FootballIQ — "Wall chart" visual world.
+   The WM-Spielplan poster: a printed chart in ink and pitch green, with
+   results (and the model's numbers) written in afterwards in marker red.
+   One family (Archivo, width axis 62-125%): condensed + heavy for scores and
+   codes, normal width for reading. Light only: it is a print object.
+
+   Token names avoid Tailwind's own utility words — a colour token called
+   `base` turned `text-base` into a colour and made the old logo invisible.
 --------------------------------------------------------------------------- */
 
 :root {
-  --bg-base: #0b1220;
-  --bg-surface: #131c2e;
-  --bg-raised: #1b2740;
-  --border: #24314d;
-  --border-strong: #33436a;
-  --text-primary: #f2f4f8;
-  --text-secondary: #a9b4c7;
-  /* Spec asked for #6b7893, but that fails AA (3.35:1) on --bg-raised — nudged
-     lighter within the same hue to clear 4.5:1 on base/surface/raised. */
-  --text-muted: #8590a6;
-  --accent: #00e07a;
-  --accent-dim: rgba(0, 224, 122, 0.12);
-  --signal: #f5a623;
-  --signal-dim: rgba(245, 166, 35, 0.12);
-  --critical: #f0526b;
-  --critical-dim: rgba(240, 82, 107, 0.12);
-  --info: #3b82f6;
-  --info-dim: rgba(59, 130, 246, 0.12);
-  --viz-1: #00e07a;
-  --viz-2: #3b82f6;
-  --viz-3: #f5a623;
-  --viz-4: #c084fc;
-  --viz-5: #22d3ee;
-  --viz-6: #f0526b;
-}
-
-[data-theme="light"] {
-  --bg-base: #f7f8fa;
-  --bg-surface: #ffffff;
-  --bg-raised: #eef0f4;
-  --border: #dde1e8;
-  --border-strong: #c3c9d4;
-  --text-primary: #14161b;
-  --text-secondary: #4c5566;
-  --text-muted: #8a92a3;
-  /* Darkened variants of the new navy-brand hues — bright #00e07a/#3b82f6 read
-     fine on dark navy but fail AA as text/icon color on white. */
-  --accent: #007a42;
-  --accent-dim: rgba(0, 122, 66, 0.1);
-  --info: #0b61ee;
-  --info-dim: rgba(11, 97, 238, 0.1);
+  color-scheme: light;
+  --paper: #fafaf7;        /* poster stock: cool white, not cream */
+  --sheet: #ffffff;        /* inset panels printed on the chart */
+  --tint: #efF0ea;         /* zebra rows, hover */
+  --rule: #d3d6d0;         /* hairlines */
+  --rule-strong: #9ea39c;  /* bracket lines, input borders */
+  --ink: #121417;
+  --ink-2: #50565c;        /* 7.1:1 on paper */
+  --ink-3: #62686e;        /* 5.4:1 on paper, 4.9:1 on tint */
+  --pitch: #0e5e3f;        /* printed structure, links */
+  --pitch-wash: rgba(14, 94, 63, 0.08);
+  --marker: #c8102e;       /* results, winners, model output */
+  --marker-wash: rgba(200, 16, 46, 0.07);
+  --caution: #8a5a00;      /* snapshot / degraded states */
+  --caution-wash: rgba(138, 90, 0, 0.09);
+  --cool: #1d4e89;         /* second series in comparisons */
+  --cool-wash: rgba(29, 78, 137, 0.08);
 }
 
 @theme inline {
-  --color-base: var(--bg-base);
-  --color-surface: var(--bg-surface);
-  --color-raised: var(--bg-raised);
-  --color-edge: var(--border);
-  --color-edge-strong: var(--border-strong);
-  --color-fg: var(--text-primary);
-  --color-fg-secondary: var(--text-secondary);
-  --color-fg-muted: var(--text-muted);
-  --color-accent: var(--accent);
-  --color-accent-dim: var(--accent-dim);
-  --color-signal: var(--signal);
-  --color-signal-dim: var(--signal-dim);
-  --color-critical: var(--critical);
-  --color-critical-dim: var(--critical-dim);
-  --color-info: var(--info);
-  --color-info-dim: var(--info-dim);
-  --font-display: var(--font-space-grotesk), system-ui, sans-serif;
-  --font-body: var(--font-inter), system-ui, sans-serif;
-  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+  --color-paper: var(--paper);
+  --color-sheet: var(--sheet);
+  --color-tint: var(--tint);
+  --color-rule: var(--rule);
+  --color-rule-strong: var(--rule-strong);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-pitch: var(--pitch);
+  --color-pitch-wash: var(--pitch-wash);
+  --color-marker: var(--marker);
+  --color-marker-wash: var(--marker-wash);
+  --color-caution: var(--caution);
+  --color-caution-wash: var(--caution-wash);
+  --color-cool: var(--cool);
+  --color-cool-wash: var(--cool-wash);
+  --font-sans: "Archivo Variable", "Archivo", ui-sans-serif, system-ui, sans-serif;
+  --radius-chip: 3px;
 }
 
 html {
-  background: var(--bg-base);
-  color: var(--text-primary);
-  font-family: var(--font-inter), system-ui, sans-serif;
-  scrollbar-color: var(--border-strong) transparent;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  scrollbar-color: var(--rule-strong) transparent;
+  -webkit-tap-highlight-color: rgba(14, 94, 63, 0.15);
 }
 
 body {
   min-height: 100dvh;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-/* Numbers are typography: every metric uses tabular mono. */
-.num {
-  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
-  font-variant-numeric: tabular-nums;
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+p {
+  text-wrap: pretty;
 }
 
-/* Accessible focus, visible on dark surfaces. */
+/* Display voice: the poster's condensed heavy grotesk. */
+.display {
+  font-stretch: 68%;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 0.95;
+}
+/* Codes and scores, as printed in the chart's boxes. */
+.code {
+  font-stretch: 75%;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.score {
+  font-stretch: 70%;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+a {
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--pitch);
   outline-offset: 2px;
-  border-radius: 4px;
+  border-radius: 2px;
 }
 
 ::selection {
-  background: var(--accent-dim);
+  background: var(--marker);
+  color: #fff;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
+/* A marker stroke under the thing that was "written in". */
+.marker-underline {
+  background-image: linear-gradient(var(--marker), var(--marker));
+  background-size: 100% 2px;
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  padding-bottom: 1px;
 }
 
-/* Landing hero glass — the one sanctioned use of glassmorphism. */
-.glass {
-  background: rgba(19, 28, 46, 0.7);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-/* Pitch-grid + glow backdrop for the hero, painted on ::before/::after so the
-   decorative mask-image never touches real content (a real bug: mask-image on
-   a container masks the WHOLE element including descendants, not just its own
-   background — it was silently erasing the header nav near the edges). */
-.hero-backdrop {
+/* Fold creases of a poster that has been taken down and put up again: the
+   one texture this world earns. Two faint lines, painted behind content. */
+.poster {
   position: relative;
   isolation: isolate;
 }
-.hero-backdrop::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background-image:
-    linear-gradient(rgba(0, 224, 122, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 224, 122, 0.05) 1px, transparent 1px);
-  background-size: 48px 48px;
-  mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, black 30%, transparent 75%);
-}
-.hero-backdrop::after {
+.poster::before {
   content: "";
   position: absolute;
   inset: 0;
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 55% 45% at 28% 22%, rgba(0, 224, 122, 0.16), transparent 60%),
-    radial-gradient(ellipse 45% 40% at 76% 32%, rgba(59, 130, 246, 0.12), transparent 60%);
-  animation: hero-glow-drift 18s ease-in-out infinite;
+    linear-gradient(90deg, transparent calc(50% - 1px), rgba(18, 20, 23, 0.035) 50%, transparent calc(50% + 1px)),
+    linear-gradient(180deg, transparent calc(50% - 1px), rgba(18, 20, 23, 0.03) 50%, transparent calc(50% + 1px));
 }
-@keyframes hero-glow-drift {
-  0%,
-  100% {
-    transform: translate(0, 0) scale(1);
-    opacity: 0.85;
+
+/* Bracket ink: the connector lines of the chart. */
+.bracket-line {
+  stroke: var(--rule-strong);
+  stroke-width: 1.25;
+  fill: none;
+}
+.bracket-line.won {
+  stroke: var(--marker);
+  stroke-width: 2;
+}
+
+/* Results being written in: one orchestrated moment on first view. */
+@keyframes write-in {
+  from {
+    clip-path: inset(0 100% 0 0);
   }
-  50% {
-    transform: translate(-2%, 3%) scale(1.08);
-    opacity: 1;
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+.write-in {
+  animation: write-in 600ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .write-in {
+    animation: none;
+  }
+  * {
+    scroll-behavior: auto !important;
   }
 }
 
-/* Feature cards: gradient border + hover lift (blueprint §3 — real depth, not
-   flat panels). Border painted on ::before so mask-composite never touches
-   the card's own text content. */
-.feature-card {
-  position: relative;
-  transition:
-    transform 200ms ease,
-    box-shadow 200ms ease,
-    border-color 200ms ease;
+@media (pointer: fine) {
+  html {
+    overscroll-behavior-y: none;
+  }
 }
-.feature-card::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 1px;
-  background: linear-gradient(
-    135deg,
-    rgba(0, 224, 122, 0.4),
-    rgba(59, 130, 246, 0.16) 55%,
-    transparent 85%
-  );
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  pointer-events: none;
+
+select,
+input,
+textarea {
+  font-size: max(16px, 1rem); /* no iOS zoom-on-focus */
 }
-.feature-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 16px 28px -16px rgba(0, 0, 0, 0.55);
+
+/* Tabular figures for any number set inline. */
+.num {
+  font-variant-numeric: tabular-nums;
 }

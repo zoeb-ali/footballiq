@@ -1,47 +1,40 @@
-import type { Metadata } from "next";
-import { Inter, JetBrains_Mono, Space_Grotesk } from "next/font/google";
+import type { Metadata, Viewport } from "next";
 import { Providers } from "@/components/shell/providers";
+import { SITE, siteUrl } from "@/lib/site";
 import "./globals.css";
 
-const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
-const spaceGrotesk = Space_Grotesk({
-  variable: "--font-space-grotesk",
-  subsets: ["latin"],
-});
-const jetbrainsMono = JetBrains_Mono({
-  variable: "--font-jetbrains-mono",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
-  ),
+  metadataBase: new URL(siteUrl()),
   title: {
-    default: "FootballIQ — AI you can audit",
+    default: "FootballIQ: the 2026 World Cup, explained by models you can check",
     template: "%s · FootballIQ",
   },
-  description:
-    "Decision-intelligence platform demonstrated on the FIFA World Cup 2026: " +
-    "explainable ML valuations, SHAP you can verify in the browser, a grounded " +
-    "AI analyst, graph analytics, and seeded Monte Carlo simulation.",
+  description: SITE.description,
+  authors: [{ name: SITE.author, url: SITE.authorUrl }],
   openGraph: {
-    title: "FootballIQ — AI you can audit",
-    description:
-      "Every prediction explains itself. Every analyst answer cites its SQL.",
+    title: "FootballIQ: the 2026 World Cup, explained by models you can check",
+    description: SITE.description,
     type: "website",
+    images: [{ url: "/og.png", width: 1200, height: 630, alt: "The 2026 World Cup knockout bracket, Spain champions" }],
   },
+  twitter: { card: "summary_large_image", images: ["/og.png"] },
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{ children: React.ReactNode }>) {
+export const viewport: Viewport = {
+  themeColor: "#fafaf7",
+  colorScheme: "light",
+};
+
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html
-      lang="en"
-      className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} h-full`}
-    >
-      <body className="flex min-h-full flex-col bg-base text-fg">
+    <html lang="en" className="h-full">
+      <body className="flex min-h-full flex-col bg-paper text-ink">
+        <a
+          href="#main"
+          className="sr-only z-[60] rounded-[3px] bg-ink px-4 py-3 font-semibold text-paper focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
+        >
+          Skip to content
+        </a>
         <Providers>{children}</Providers>
       </body>
     </html>

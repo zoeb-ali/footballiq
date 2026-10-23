@@ -64,6 +64,13 @@ class MatchRecord:
     away_score: int | None
     home_xg: float | None
     away_xg: float | None
+    # Knockout resolution: shoot-out scores (None unless decided on penalties),
+    # how the result was reached (regular | aet | penalties) and who went
+    # through ("home" | "away"; None for group-stage draws / unplayed).
+    home_penalty_score: int | None = None
+    away_penalty_score: int | None = None
+    result_type: str | None = None
+    winner_side: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,6 +95,20 @@ class MatchReadModel(Protocol):
 
 
 @dataclass(frozen=True, slots=True)
+class TournamentStats:
+    """What the player actually did at the 2026 tournament (source snapshot,
+    reconciled against match events by dbt contract)."""
+
+    matches: int
+    starts: int
+    minutes: int
+    goals: int
+    assists: int
+    yellow_cards: int
+    red_cards: int
+
+
+@dataclass(frozen=True, slots=True)
 class PlayerRecord:
     """One player from gold.dim_player with national-team context."""
 
@@ -101,14 +122,16 @@ class PlayerRecord:
     date_of_birth: str  # ISO date; age derived by consumers at query time
     height_cm: int
     team: TeamSide
+    tournament: TournamentStats | None = None
 
 
 @dataclass(frozen=True, slots=True)
 class PlayerFilter:
-    """Optional catalog filters."""
+    """Optional catalog filters + ordering (market_value | goals | assists | minutes)."""
 
     team_id: int | None = None
     position: str | None = None
+    sort: str = "market_value"
 
 
 class PlayerReadModel(Protocol):

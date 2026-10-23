@@ -83,9 +83,20 @@ class TbdOpponentRef(BaseModel):
     kind: Literal["to_be_determined"] = "to_be_determined"
 
 
+class PenaltiesOut(BaseModel):
+    home: int
+    away: int
+
+
 class ScoreOut(BaseModel):
     home: int
     away: int
+    # Present only when the tie was settled by a shoot-out.
+    penalties: PenaltiesOut | None = None
+    # How the result was reached: regular | aet | penalties.
+    decided_by: Literal["regular", "aet", "penalties"] = "regular"
+    # Who went through ("home" | "away"); None for a group-stage draw.
+    winner: Literal["home", "away"] | None = None
 
 
 class XgOut(BaseModel):
@@ -122,6 +133,18 @@ class CompletedMatch(_MatchBase):
 MatchOut = Annotated[ScheduledMatch | CompletedMatch, Field(discriminator="status")]
 
 
+class TournamentStatsOut(BaseModel):
+    """What the player did at the tournament (matches, minutes, output)."""
+
+    matches: int
+    starts: int
+    minutes: int
+    goals: int
+    assists: int
+    yellow_cards: int
+    red_cards: int
+
+
 class PlayerResponse(BaseModel):
     """One registered player with national-team context.
 
@@ -139,6 +162,7 @@ class PlayerResponse(BaseModel):
     date_of_birth: str
     height_cm: int
     team: TeamRef
+    tournament: TournamentStatsOut | None = None
 
     @classmethod
     def from_record(cls, rec: PlayerRecord) -> PlayerResponse:
@@ -154,6 +178,19 @@ class PlayerResponse(BaseModel):
             height_cm=rec.height_cm,
             team=TeamRef(
                 team_id=rec.team.team_id, name=rec.team.name, fifa_code=rec.team.fifa_code
+            ),
+            tournament=(
+                None
+                if rec.tournament is None
+                else TournamentStatsOut(
+                    matches=rec.tournament.matches,
+                    starts=rec.tournament.starts,
+                    minutes=rec.tournament.minutes,
+                    goals=rec.tournament.goals,
+                    assists=rec.tournament.assists,
+                    yellow_cards=rec.tournament.yellow_cards,
+                    red_cards=rec.tournament.red_cards,
+                )
             ),
         )
 
@@ -210,8 +247,8 @@ class ValuationResponse(_Provenance):
     value_gap_eur: float
     top_k: list[ShapContributionOut]
     accuracy_note: str = (
-        "Predictions are indicative: ~20% fall within +/-20% of market on "
-        "evaluation. SHAP explains the model, not the market."
+        "Predictions are indicative: in cross-validation about 18% land within "
+        "20% of market value. SHAP explains the model, not the market."
     )
 
     @classmethod
@@ -445,6 +482,23 @@ class AnalystResponse(BaseModel):
         )
 
 
+def _decided_by(raw: str | None) -> Literal["regular", "aet", "penalties"]:
+    value = (raw or "regular").lower()
+    if value == "penalties":
+        return "penalties"
+    if value == "aet":
+        return "aet"
+    return "regular"
+
+
+def _winner(raw: str | None) -> Literal["home", "away"] | None:
+    if raw == "home":
+        return "home"
+    if raw == "away":
+        return "away"
+    return None
+
+
 def match_out_from_record(rec: MatchRecord) -> ScheduledMatch | CompletedMatch:
     """Map a read-model record onto the discriminated contract."""
     home = TeamRef(
@@ -473,7 +527,18 @@ def match_out_from_record(rec: MatchRecord) -> ScheduledMatch | CompletedMatch:
                 name=rec.away_team.name,
                 fifa_code=rec.away_team.fifa_code,
             ),
-            score=ScoreOut(home=rec.home_score, away=rec.away_score),
+            score=ScoreOut(
+                home=rec.home_score,
+                away=rec.away_score,
+                penalties=(
+                    PenaltiesOut(home=rec.home_penalty_score, away=rec.away_penalty_score)
+                    if rec.home_penalty_score is not None
+                    and rec.away_penalty_score is not None
+                    else None
+                ),
+                decided_by=_decided_by(rec.result_type),
+                winner=_winner(rec.winner_side),
+            ),
             xg=XgOut(home=rec.home_xg, away=rec.away_xg),
         )
     away: TeamRef | TbdOpponentRef = TbdOpponentRef()
@@ -648,8 +713,8 @@ class ModelPerformanceResponse(BaseModel):
     models: list[RegistryModelOut]
     feature_importance: list[FeatureImportanceOut]
     accuracy_note: str = (
-        "Predictions are indicative: ~20% fall within +/-20% of market on "
-        "evaluation. SHAP explains the model, not the market."
+        "Predictions are indicative: in cross-validation about 18% land within "
+        "20% of market value. SHAP explains the model, not the market."
     )
 
     @classmethod

@@ -50,7 +50,15 @@ export interface ScheduledMatch extends MatchBase {
 export interface CompletedMatch extends MatchBase {
   status: "Completed";
   away: TeamRef;
-  score: { home: number; away: number };
+  score: {
+    home: number;
+    away: number;
+    /** Present only when the tie went to a shoot-out. */
+    penalties: { home: number; away: number } | null;
+    decided_by: "regular" | "aet" | "penalties";
+    /** Who went through; null for a group-stage draw. */
+    winner: "home" | "away" | null;
+  };
   xg: { home: number; away: number };
 }
 
@@ -67,7 +75,21 @@ export interface Player {
   date_of_birth: string;
   height_cm: number;
   team: TeamRef;
+  /** What the player did at the tournament; null if no snapshot row. */
+  tournament: TournamentStats | null;
 }
+
+export interface TournamentStats {
+  matches: number;
+  starts: number;
+  minutes: number;
+  goals: number;
+  assists: number;
+  yellow_cards: number;
+  red_cards: number;
+}
+
+export type PlayerSort = "market_value" | "goals" | "assists" | "minutes";
 
 export interface ShapContribution {
   feature_name: string;

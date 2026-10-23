@@ -17,6 +17,17 @@ select
     m.status,
     m.home_score,
     m.away_score,
+    m.home_penalty_score,
+    m.away_penalty_score,
+    m.result_type,
+    -- Who went through: goals first, then the shoot-out. Null for draws that
+    -- were never decided (group stage) and for unplayed matches.
+    case
+        when m.home_score > m.away_score then 'home'
+        when m.away_score > m.home_score then 'away'
+        when m.home_penalty_score > m.away_penalty_score then 'home'
+        when m.away_penalty_score > m.home_penalty_score then 'away'
+    end                                                    as winner_side,
     m.home_xg,
     m.away_xg
 from {{ ref('silver_match') }} as m

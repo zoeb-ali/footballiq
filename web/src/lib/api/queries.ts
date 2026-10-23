@@ -16,6 +16,7 @@ import type {
   NationConcentration,
   Paginated,
   Player,
+  PlayerSort,
   TalentFlowEdge,
   Team,
   Valuation,
@@ -59,13 +60,20 @@ export function usePlayers(opts: {
   position?: string;
   limit?: number;
   offset?: number;
+  sort?: PlayerSort;
 }) {
-  const { teamId, position, limit = 50, offset = 0 } = opts;
+  const { teamId, position, limit = 50, offset = 0, sort } = opts;
   return useQuery({
-    queryKey: ["players", teamId, position, limit, offset],
+    queryKey: ["players", teamId, position, limit, offset, sort],
     queryFn: () =>
       apiGet<Paginated<Player>>(
-        `/v1/players${qs({ team_id: teamId, position, limit, offset })}`,
+        `/v1/players${qs({
+          team_id: teamId,
+          position,
+          sort: sort && sort !== "market_value" ? sort : undefined,
+          limit,
+          offset,
+        })}`,
       ),
     staleTime: STALE_FAST,
     placeholderData: keepPreviousData,
@@ -88,6 +96,25 @@ export function useMatches(status?: "Scheduled" | "Completed", limit = 100, offs
       apiGet<Paginated<Match>>(`/v1/matches${qs({ status, limit, offset })}`),
     staleTime: STALE_FAST,
     placeholderData: keepPreviousData,
+  });
+}
+
+/** Every match. The API caps a page at 100 and the tournament has 104. */
+export function useAllMatches() {
+  return useQuery({
+    queryKey: ["matches-all"],
+    queryFn: async (): Promise<ApiResult<Match[]>> => {
+      const first = await apiGet<Paginated<Match>>("/v1/matches?limit=100");
+      const items = [...first.data.items];
+      let source = first.source;
+      for (let offset = 100; offset < first.data.total; offset += 100) {
+        const page = await apiGet<Paginated<Match>>(`/v1/matches?limit=100&offset=${offset}`);
+        items.push(...page.data.items);
+        if (page.source === "snapshot") source = "snapshot";
+      }
+      return { data: items, source };
+    },
+    staleTime: STALE_SLOW,
   });
 }
 
@@ -137,6 +164,25 @@ export function useTalentFlow(limit = 100, offset = 0) {
       ),
     staleTime: STALE_SLOW,
     placeholderData: keepPreviousData,
+  });
+}
+
+/** The whole club -> nation edge list (957 edges, paged by 100). */
+export function useAllTalentFlow() {
+  return useQuery({
+    queryKey: ["talent-flow-all"],
+    queryFn: async (): Promise<ApiResult<TalentFlowEdge[]>> => {
+      const first = await apiGet<Paginated<TalentFlowEdge>>("/v1/graph/talent-flow?limit=100");
+      const items = [...first.data.items];
+      let source = first.source;
+      for (let offset = 100; offset < first.data.total; offset += 100) {
+        const page = await apiGet<Paginated<TalentFlowEdge>>(`/v1/graph/talent-flow?limit=100&offset=${offset}`);
+        items.push(...page.data.items);
+        if (page.source === "snapshot") source = "snapshot";
+      }
+      return { data: items, source };
+    },
+    staleTime: STALE_SLOW,
   });
 }
 

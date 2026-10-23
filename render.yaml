@@ -22,5 +22,9 @@ services:
         sync: false # least-privilege fiq_analyst role (optional but recommended)
       - key: FIQ_API_KEY_HASHES
         sync: false # sha256 of the demo key; never the key itself
+      - key: FIQ_ANALYST_RETRIEVAL
+        value: semantic # "keyword" = Postgres full-text only, never loads a model
+      - key: OMP_NUM_THREADS
+        value: "1"
       - key: FIQ_CORS_ORIGINS
         sync: false # optional: the Vercel origin, for direct Swagger use

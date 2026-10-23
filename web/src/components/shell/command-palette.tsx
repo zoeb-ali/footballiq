@@ -12,6 +12,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiGet } from "@/lib/api/client";
 import type { Paginated, Player, Team } from "@/lib/api/types";
 import { useUiStore } from "@/lib/store";
+import { Flag } from "@/components/domain/monogram";
 
 const PLAYER_PAGES = 13; // 1,248 players / 100 per page
 
@@ -62,53 +63,52 @@ export function CommandPalette() {
     <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Search">
       <button
         aria-label="Close search"
-        className="absolute inset-0 bg-black/60"
+        className="absolute inset-0 bg-ink/40"
         onClick={() => setPaletteOpen(false)}
       />
-      <div className="glass absolute left-1/2 top-24 w-[min(560px,92vw)] -translate-x-1/2 overflow-hidden rounded-xl">
+      <div className="absolute left-1/2 top-[12vh] w-[min(600px,94vw)] -translate-x-1/2 overflow-hidden rounded-[4px] border border-ink bg-sheet shadow-[0_24px_48px_-24px_rgba(18,20,23,0.45)]">
         <Command label="Search teams and players" loop>
           <Command.Input
             autoFocus
-            placeholder="Search teams, players…"
-            className="h-12 w-full border-b border-edge bg-transparent px-4 text-sm text-fg outline-none placeholder:text-fg-muted"
+            placeholder="Search 48 teams and 1,248 players…"
+            className="h-14 w-full border-b border-rule bg-transparent px-4 text-ink outline-none placeholder:text-ink-3"
           />
-          <Command.List className="max-h-80 overflow-y-auto p-2">
-            <Command.Empty className="p-4 text-sm text-fg-muted">
-              {index.isFetching ? "Loading index…" : "No results."}
+          <Command.List className="max-h-[60vh] overflow-y-auto overscroll-contain p-2">
+            <Command.Empty className="p-4 text-sm text-ink-3">
+              {index.isFetching ? "Loading players…" : "No team or player matches that."}
             </Command.Empty>
             {index.data ? (
               <>
                 <Command.Group
                   heading="Teams"
-                  className="text-[10px] uppercase tracking-widest text-fg-muted [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5"
+                  className="text-[13px] font-semibold text-ink-3 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-2"
                 >
                   {index.data.teams.map((t) => (
                     <Command.Item
                       key={t.team_id}
                       value={`${t.name} ${t.fifa_code}`}
                       onSelect={() => go(`/app/teams/${t.team_id}`)}
-                      className="cursor-pointer rounded-md px-2 py-2 text-sm text-fg aria-selected:bg-accent-dim aria-selected:text-accent"
+                      className="flex min-h-11 cursor-pointer items-center gap-2.5 rounded-[3px] px-2 text-[15px] text-ink aria-selected:bg-ink aria-selected:text-paper"
                     >
-                      {t.name}{" "}
-                      <span className="num text-xs text-fg-muted">{t.fifa_code}</span>
+                      <Flag code={t.fifa_code} />
+                      {t.name}
                     </Command.Item>
                   ))}
                 </Command.Group>
                 <Command.Group
                   heading="Players"
-                  className="text-[10px] uppercase tracking-widest text-fg-muted [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5"
+                  className="text-[13px] font-semibold text-ink-3 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-2"
                 >
-                  {index.data.players.slice(0, 400).map((p) => (
+                  {index.data.players.map((p) => (
                     <Command.Item
                       key={p.player_id}
                       value={`${p.name} ${p.team.name} ${p.position}`}
                       onSelect={() => go(`/app/players/${p.player_id}`)}
-                      className="cursor-pointer rounded-md px-2 py-2 text-sm text-fg aria-selected:bg-accent-dim aria-selected:text-accent"
+                      className="flex min-h-11 cursor-pointer items-center gap-2.5 rounded-[3px] px-2 text-[15px] text-ink aria-selected:bg-ink aria-selected:text-paper"
                     >
-                      {p.name}{" "}
-                      <span className="text-xs text-fg-muted">
-                        {p.position} · {p.team.name}
-                      </span>
+                      <Flag code={p.team.fifa_code} />
+                      <span className="flex-1">{p.name}</span>
+                      <span className="text-[13px] opacity-70">{p.team.name}</span>
                     </Command.Item>
                   ))}
                 </Command.Group>
